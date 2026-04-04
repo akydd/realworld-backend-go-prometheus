@@ -63,3 +63,18 @@ This will:
 ```bash
 make lint
 ```
+
+## CI/CD
+
+Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
+
+### Pipeline stages
+
+1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`).
+2. **Build and push** — only runs if the test stage passes. Builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
+
+### Required secrets
+
+| Secret | Description |
+|---|---|
+| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push access |
