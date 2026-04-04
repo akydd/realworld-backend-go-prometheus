@@ -6,9 +6,26 @@ on:
       - main
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout realworld specs
+        uses: actions/checkout@v4
+        with:
+          repository: gothinkster/realworld
+          path: realworld-specs
+
+      - name: Run integration tests
+        run: make int-tests SPECS_DIR=realworld-specs
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
