@@ -21,6 +21,11 @@ jobs:
           repository: gothinkster/realworld
           path: realworld-specs
 
+      - name: Install hurl
+        run: |
+          curl -LO https://github.com/Orange-OpenSource/hurl/releases/latest/download/hurl_latest_amd64.deb
+          sudo apt install ./hurl_latest_amd64.deb
+
       - name: Run integration tests
         run: make int-tests SPECS_DIR=realworld-specs
 
