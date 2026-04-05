@@ -1,6 +1,22 @@
 # RealWorld Backend — Go
 
+![CI](https://github.com/akydd/realworld-backend-go/actions/workflows/docker-publish.yml/badge.svg)
+
 A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com). Users can register, publish articles, follow each other, comment, and favorite posts.
+
+**Stack:** Go · PostgreSQL · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
+
+## Key Design Decisions
+
+**Hexagonal Architecture (Ports & Adapters)** — business logic in `internal/domain/` has zero framework dependencies. The HTTP layer and PostgreSQL adapter are fully interchangeable without touching domain code. This makes the codebase easy to test, extend, and reason about.
+
+**AWS ECS Fargate over EC2** — no servers to manage or patch. Tasks run across two private subnets (one per AZ) behind an ALB for high availability and zero-downtime rolling deploys.
+
+**Keyless CI/CD via OIDC** — GitHub Actions assumes an AWS IAM role via OpenID Connect rather than using static credentials. No long-lived AWS access keys exist anywhere in the pipeline.
+
+**Separate task execution role and task role** — the execution role has the minimum permissions needed to start a container (pull from ECR, write logs, read secrets). The task role holds only the permissions the running application needs. Compromise of one does not imply compromise of the other.
+
+**Secrets Manager over environment variables** — `DB_PASSWORD` and `JWT_SECRET` are stored in AWS Secrets Manager and injected at container startup. They are never committed to source control or stored in CI.
 
 ## Architecture
 
@@ -12,17 +28,46 @@ The project uses **Hexagonal Architecture** (Ports & Adapters):
 
 See [arch.md](arch.md) for a full description of every layer, route, schema, and design decision.
 
+## CI/CD
+
+Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
+
+### Pipeline stages
+
+1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`). The build and deploy stages are blocked until this passes.
+2. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
+3. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
+
+### Infrastructure
+
+The app runs on AWS in `ca-west-1` using the following services:
+
+- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability
+- **Application Load Balancer** — receives inbound HTTP traffic on port 80 and forwards to Fargate tasks on port 8090
+- **RDS PostgreSQL 17** — database in private subnets, only reachable from ECS tasks
+- **ECR** — stores Docker images pushed by the CI pipeline
+- **Secrets Manager** — holds `DB_PASSWORD` and `JWT_SECRET`, injected into containers at startup
+- **CloudWatch Logs** — container stdout/stderr streamed to `/ecs/realworld` (30 day retention)
+
+All infrastructure is defined in Terraform under `terraform/`.
+
+### Required secrets
+
+| Secret | Description |
+|---|---|
+| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push and ECS deploy access |
+
 ## How it was developed
 
-Features were written as plain-English specification files (e.g. `features/9-create-article.md`). Each feature was handed to **Claude Code**, which:
+Features were written as plain-English specification files (e.g. `features/9-create-article.md`). Each feature was implemented with the assistance of **Claude Code**, an AI coding tool. The workflow for each feature was:
 
-1. Read the feature file and the current architecture document.
-2. Wrote an implementation plan to `features/plans/`.
-3. Implemented the plan across all required layers.
-4. Iterated until `make lint` reported no issues and `make int-tests` passed all integration tests.
-5. Updated `arch.md` to reflect the changes.
+1. Write a feature specification describing the required behaviour.
+2. Review and guide Claude Code's implementation plan in `features/plans/`.
+3. Review the implementation across all required layers.
+4. Verify `make lint` reported no issues and `make int-tests` passed all integration tests.
+5. Review updates to `arch.md` to keep the architecture document current.
 
-The integration test suite is the [official RealWorld Hurl test suite](https://github.com/gothinkster/realworld), run against a live server and test database on every feature.
+The infrastructure was designed and debugged collaboratively with Claude Code — including VPC layout, IAM policy scoping, ECS service configuration, and resolving deployment issues.
 
 ## Running the app
 
@@ -63,32 +108,3 @@ This will:
 ```bash
 make lint
 ```
-
-## CI/CD
-
-Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
-
-### Pipeline stages
-
-1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`). The build and deploy stages are blocked until this passes.
-2. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
-3. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
-
-### Infrastructure
-
-The app runs on AWS in `ca-west-1` using the following services:
-
-- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability
-- **Application Load Balancer** — receives inbound HTTP traffic on port 80 and forwards to Fargate tasks on port 8090
-- **RDS PostgreSQL 17** — database in private subnets, only reachable from ECS tasks
-- **ECR** — stores Docker images pushed by the CI pipeline
-- **Secrets Manager** — holds `DB_PASSWORD` and `JWT_SECRET`, injected into containers at startup
-- **CloudWatch Logs** — container stdout/stderr streamed to `/ecs/realworld` (30 day retention)
-
-All infrastructure is defined in Terraform under `terraform/`.
-
-### Required secrets
-
-| Secret | Description |
-|---|---|
-| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push and ECS deploy access |
