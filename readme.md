@@ -18,6 +18,8 @@ A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend A
 
 **Secrets Manager over environment variables** — `DB_PASSWORD` and `JWT_SECRET` are stored in AWS Secrets Manager and injected at container startup. They are never committed to source control or stored in CI.
 
+**Observability via CloudWatch** — ECS CPU/memory, RDS CPU/connections, and ALB 5xx error rate are monitored with CloudWatch alarms. Breaches trigger SNS email notifications, enabling rapid response to availability and performance issues.
+
 ## Architecture
 
 The project uses **Hexagonal Architecture** (Ports & Adapters):
@@ -48,6 +50,7 @@ The app runs on AWS in `ca-west-1` using the following services:
 - **ECR** — stores Docker images pushed by the CI pipeline
 - **Secrets Manager** — holds `DB_PASSWORD` and `JWT_SECRET`, injected into containers at startup
 - **CloudWatch Logs** — container stdout/stderr streamed to `/ecs/realworld` (30 day retention)
+- **CloudWatch Alarms + SNS** — email alerts for ECS CPU/memory, RDS CPU/connections, and ALB 5xx error rate
 
 All infrastructure is defined in Terraform under `terraform/`.
 

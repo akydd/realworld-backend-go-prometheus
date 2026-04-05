@@ -19,3 +19,8 @@ variable "jwt_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "alerts_email" {
+  description = "Email that receives alerts"
+  type        = string
+}
