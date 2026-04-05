@@ -1014,6 +1014,11 @@ type TagsResponse struct {
 	Tags []string `json:"tags"`
 }
 
+// HealthCheck handles GET /api/healthcheck and returns 200 OK if the server is running.
+func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 // GetTags handles GET /api/tags and returns all tags used on published articles.
 func (h *Handler) GetTags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

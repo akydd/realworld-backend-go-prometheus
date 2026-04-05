@@ -38,6 +38,7 @@ type ServerHandlers interface {
 	GetArticleComments(http.ResponseWriter, *http.Request)
 	DeleteArticleComment(http.ResponseWriter, *http.Request)
 	GetTags(http.ResponseWriter, *http.Request)
+	HealthCheck(http.ResponseWriter, *http.Request)
 }
 
 // NewServer constructs a Server, wires all API routes to the supplied handlers,
@@ -47,6 +48,7 @@ func NewServer(port string, h ServerHandlers, jwtSecret string) (*Server, error)
 	r.HandleFunc("/api/users", h.RegisterUser).Methods("POST")
 	r.HandleFunc("/api/users/login", h.LoginUser).Methods("POST")
 	r.HandleFunc("/api/tags", h.GetTags).Methods("GET")
+	r.HandleFunc("/api/healthcheck", h.HealthCheck).Methods("GET")
 
 	protected := r.NewRoute().Subrouter()
 	protected.Use(authMiddleware(jwtSecret))
