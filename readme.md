@@ -70,11 +70,25 @@ Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeli
 
 ### Pipeline stages
 
-1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`).
-2. **Build and push** — only runs if the test stage passes. Builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
+1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`). The build and deploy stages are blocked until this passes.
+2. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
+3. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
+
+### Infrastructure
+
+The app runs on AWS in `ca-west-1` using the following services:
+
+- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability
+- **Application Load Balancer** — receives inbound HTTP traffic on port 80 and forwards to Fargate tasks on port 8090
+- **RDS PostgreSQL 17** — database in private subnets, only reachable from ECS tasks
+- **ECR** — stores Docker images pushed by the CI pipeline
+- **Secrets Manager** — holds `DB_PASSWORD` and `JWT_SECRET`, injected into containers at startup
+- **CloudWatch Logs** — container stdout/stderr streamed to `/ecs/realworld` (30 day retention)
+
+All infrastructure is defined in Terraform under `terraform/`.
 
 ### Required secrets
 
 | Secret | Description |
 |---|---|
-| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push access |
+| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push and ECS deploy access |
