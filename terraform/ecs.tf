@@ -74,8 +74,8 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
         Resource = "*"
       },
       {
-        Effect   = "Allow"
-        Action   = ["iam:PassRole"]
+        Effect = "Allow"
+        Action = ["iam:PassRole"]
         Resource = [
           aws_iam_role.ecs_task_execution.arn,
           aws_iam_role.ecs_task.arn
@@ -118,8 +118,8 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.db_password.arn,
         aws_secretsmanager_secret.jwt_secret.arn
@@ -184,9 +184,10 @@ resource "aws_ecs_task_definition" "app" {
     }]
 
     environment = [
-      { name = "DB_HOST",     value = aws_db_instance.main.address },
-      { name = "DB_PORT",     value = "5432" },
-      { name = "DB_NAME",     value = var.db_name },
+      { name = "DB_HOST", value = aws_db_instance.main.address },
+      { name = "DB_PORT", value = "5432" },
+      { name = "DB_NAME", value = var.db_name },
+      { name = "DB_USER", value = var.db_username },
       { name = "SERVER_PORT", value = "8090" }
     ]
 
