@@ -1,3 +1,15 @@
+resource "aws_db_parameter_group" "main" {
+  name   = "realworld-pg"
+  family = "postgres17"
+
+  parameter {
+    name  = "rds.force_ssl"
+    value = "0"
+  }
+
+  tags = { Name = "realworld-pg" }
+}
+
 resource "aws_db_subnet_group" "main" {
   name       = "realworld-db-subnet-group"
   subnet_ids = [aws_subnet.private-a.id, aws_subnet.private-b.id]
@@ -18,6 +30,7 @@ resource "aws_db_instance" "main" {
 
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
+  parameter_group_name   = aws_db_parameter_group.main.name
 
   skip_final_snapshot = true
   publicly_accessible = false
