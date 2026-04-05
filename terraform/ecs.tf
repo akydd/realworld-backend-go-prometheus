@@ -1,48 +1,3 @@
-provider "aws" {
-  region = "ca-west-1"
-}
-
-resource "aws_vpc" "main" {
-  cidr_block       = "10.0.0.0/16"
-  instance_tenancy = "default"
-
-  tags = {
-    Name = "als-vpc"
-  }
-}
-
-resource "aws_subnet" "public-a" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = "ca-west-1a"
-  tags                    = { Name = "public-subnet-a" }
-}
-
-resource "aws_subnet" "private-a" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  map_public_ip_on_launch = false
-  availability_zone       = "ca-west-1a"
-  tags                    = { Name = "private-subnet-a" }
-}
-
-resource "aws_subnet" "public-b" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.3.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = "ca-west-1b"
-  tags                    = { Name = "public-subnet-b" }
-}
-
-resource "aws_subnet" "private-b" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.4.0/24"
-  map_public_ip_on_launch = false
-  availability_zone       = "ca-west-1b"
-  tags                    = { Name = "private-subnet-b" }
-}
-
 resource "aws_ecr_repository" "app" {
   name                 = "realworld-backend-go"
   image_tag_mutability = "MUTABLE"
@@ -50,14 +5,6 @@ resource "aws_ecr_repository" "app" {
   image_scanning_configuration {
     scan_on_push = true
   }
-}
-
-output "ecr_repository_url" {
-  value = aws_ecr_repository.app.repository_url
-}
-
-output "github_actions_role_arn" {
-  value = aws_iam_role.github_actions.arn
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
@@ -119,4 +66,3 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
     ]
   })
 }
-
