@@ -10,7 +10,7 @@ A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend A
 
 **Hexagonal Architecture (Ports & Adapters)** — business logic in `internal/domain/` has zero framework dependencies. The HTTP layer and PostgreSQL adapter are fully interchangeable without touching domain code. This makes the codebase easy to test, extend, and reason about.
 
-**AWS ECS Fargate over EC2** — no servers to manage or patch. Tasks run across two private subnets (one per AZ) behind an ALB for high availability and zero-downtime rolling deploys.
+**AWS ECS Fargate over EC2** — no servers to manage or patch. Tasks run across two private subnets (one per AZ) behind an ALB for high availability and zero-downtime rolling deploys. Application Auto Scaling adjusts the task count between 2 and 4 based on CPU utilization, keeping costs low under normal load while handling traffic spikes automatically.
 
 **Keyless CI/CD via OIDC** — GitHub Actions assumes an AWS IAM role via OpenID Connect rather than using static credentials. No long-lived AWS access keys exist anywhere in the pipeline.
 
@@ -44,7 +44,7 @@ Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeli
 
 The app runs on AWS in `ca-west-1` using the following services:
 
-- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability
+- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability; Application Auto Scaling scales tasks between 2 and 4 based on CPU utilization
 - **Application Load Balancer** — receives inbound HTTP traffic on port 80 and forwards to Fargate tasks on port 8090
 - **RDS PostgreSQL 17** — database in private subnets, only reachable from ECS tasks
 - **ECR** — stores Docker images pushed by the CI pipeline
