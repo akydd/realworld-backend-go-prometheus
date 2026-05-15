@@ -1,10 +1,15 @@
-.PHONY: int-tests lint start proto
+.PHONY: int-tests lint start proto dev
 
 start:
 	docker compose up -d
 	until docker compose exec -T db pg_isready -U admin -d app; do sleep 1; done
 	go build ./cmd/server
 	./server
+
+dev:
+	docker compose up -d
+	until docker compose exec -T db pg_isready -U admin -d app; do sleep 1; done
+	air
 
 proto:
 	buf generate

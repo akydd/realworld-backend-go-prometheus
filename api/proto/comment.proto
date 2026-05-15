@@ -2,29 +2,13 @@ syntax = "proto3";
 
 option go_package = "realworld-backend-go/api/proto/gen/pb";
 
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 service CommentService {
-    rpc CreateComment(CreateCommentRequest) returns (CommentResponse) {
-        option (google.api.http) = {
-            post: "/api/articles/{slug}/comments"
-            body: "comment"
-        };
-    }
-
-    rpc GetComments(GetCommentsRequest) returns (CommentsResponse) {
-        option (google.api.http) = {
-            get: "/api/articles/{slug}/comments"
-        };
-    }
-
-    rpc DeleteComment(DeleteCommentRequest) returns (google.protobuf.Empty) {
-        option (google.api.http) = {
-            delete: "/api/articles/{slug}/comments/{id}"
-        };
-    }
+    rpc CreateComment(CreateCommentRequest) returns (CommentResponse);
+    rpc GetComments(GetCommentsRequest) returns (CommentsResponse);
+    rpc DeleteComment(DeleteCommentRequest) returns (google.protobuf.Empty);
 }
 
 message CreateCommentRequestInner {

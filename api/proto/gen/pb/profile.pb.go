@@ -7,7 +7,6 @@
 package pb
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -270,7 +269,7 @@ var File_profile_proto protoreflect.FileDescriptor
 
 const file_profile_proto_rawDesc = "" +
 	"\n" +
-	"\rprofile.proto\x1a\x1cgoogle/api/annotations.proto\"\x94\x01\n" +
+	"\rprofile.proto\"\x94\x01\n" +
 	"\x14ProfileResponseInner\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x15\n" +
 	"\x03bio\x18\x02 \x01(\tH\x00R\x03bio\x88\x01\x01\x12\x19\n" +
@@ -285,13 +284,13 @@ const file_profile_proto_rawDesc = "" +
 	"\x11FollowUserRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\"1\n" +
 	"\x13UnfollowUserRequest\x12\x1a\n" +
-	"\busername\x18\x01 \x01(\tR\busername2\xa4\x02\n" +
-	"\x0eProfileService\x12T\n" +
+	"\busername\x18\x01 \x01(\tR\busername2\xb0\x01\n" +
+	"\x0eProfileService\x122\n" +
 	"\n" +
-	"GetProfile\x12\x12.GetProfileRequest\x1a\x10.ProfileResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/api/profiles/{username}\x12[\n" +
+	"GetProfile\x12\x12.GetProfileRequest\x1a\x10.ProfileResponse\x122\n" +
 	"\n" +
-	"FollowUser\x12\x12.FollowUserRequest\x1a\x10.ProfileResponse\"'\x82\xd3\xe4\x93\x02!\"\x1f/api/profiles/{username}/follow\x12_\n" +
-	"\fUnfollowUser\x12\x14.UnfollowUserRequest\x1a\x10.ProfileResponse\"'\x82\xd3\xe4\x93\x02!*\x1f/api/profiles/{username}/followB7B\fProfileProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"FollowUser\x12\x12.FollowUserRequest\x1a\x10.ProfileResponse\x126\n" +
+	"\fUnfollowUser\x12\x14.UnfollowUserRequest\x1a\x10.ProfileResponseB7B\fProfileProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_profile_proto_rawDescOnce sync.Once

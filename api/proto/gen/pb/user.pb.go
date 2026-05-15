@@ -7,7 +7,6 @@
 package pb
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -468,7 +467,7 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\"h\n" +
+	"user.proto\x1a\x1bgoogle/protobuf/empty.proto\"h\n" +
 	"\x18RegisterUserRequestInner\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
@@ -502,14 +501,13 @@ const file_user_proto_rawDesc = "" +
 	"\t_usernameB\v\n" +
 	"\t_password\"@\n" +
 	"\x11UpdateUserRequest\x12+\n" +
-	"\x04user\x18\x01 \x01(\v2\x17.UpdateUserRequestInnerR\x04user2\xba\x02\n" +
-	"\vUserService\x12M\n" +
-	"\fRegisterUser\x12\x14.RegisterUserRequest\x1a\r.UserResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x04user\"\n" +
-	"/api/users\x12M\n" +
-	"\tLoginUser\x12\x11.LoginUserRequest\x1a\r.UserResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x04user\"\x10/api/users/login\x12C\n" +
-	"\aGetUser\x12\x16.google.protobuf.Empty\x1a\r.UserResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/api/user\x12H\n" +
+	"\x04user\x18\x01 \x01(\v2\x17.UpdateUserRequestInnerR\x04user2\xd4\x01\n" +
+	"\vUserService\x123\n" +
+	"\fRegisterUser\x12\x14.RegisterUserRequest\x1a\r.UserResponse\x12-\n" +
+	"\tLoginUser\x12\x11.LoginUserRequest\x1a\r.UserResponse\x120\n" +
+	"\aGetUser\x12\x16.google.protobuf.Empty\x1a\r.UserResponse\x12/\n" +
 	"\n" +
-	"UpdateUser\x12\x12.UpdateUserRequest\x1a\r.UserResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x04user\x1a\t/api/userB4B\tUserProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"UpdateUser\x12\x12.UpdateUserRequest\x1a\r.UserResponseB4B\tUserProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once

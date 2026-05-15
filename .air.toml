@@ -1,0 +1,8 @@
+[build]
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  bin = "./tmp/server"
+  args_bin = ["-env", ".env"]
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "vendor", "api"]
+  kill_delay = "0s"
+  delay = 500

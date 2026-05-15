@@ -2,15 +2,10 @@ syntax = "proto3";
 
 option go_package = "realworld-backend-go/api/proto/gen/pb";
 
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
 service TagService {
-    rpc GetTags(google.protobuf.Empty) returns (TagsResponse) {
-        option (google.api.http) = {
-            get: "/api/tags"
-        };
-    }
+    rpc GetTags(google.protobuf.Empty) returns (TagsResponse);
 }
 
 message TagsResponse {

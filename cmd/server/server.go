@@ -3,13 +3,16 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
 	"os"
 
+	igrpc "realworld-backend-go/internal/adapters/in/grpc"
 	"realworld-backend-go/internal/adapters/in/webserver"
 	"realworld-backend-go/internal/adapters/out/db"
 	"realworld-backend-go/internal/domain"
 
 	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -48,6 +51,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// gRPC server
+	grpcServer := grpc.NewServer()
+	userGrpcServer := igrpc.NewUserServer(userController)
+	tagGrpcServer := igrpc.NewTagServer(tagController)
+	profileGrpcServer := igrpc.NewProfileServer(profileController)
+	commentGrpcServer := igrpc.NewCommentServer(commentController)
+	articleGrpcServer := igrpc.NewArticleServer(articleController)
+	igrpcServer := igrpc.NewGrpcServer(grpcServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
+
+	lis, err := net.Listen("tcp", ":8099")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	go func() {
+		log.Printf("starting gRPC server on port 8099...")
+		if err := igrpcServer.Server.Serve(lis); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
 
 	s.Start()
 }

@@ -7,7 +7,6 @@
 package pb
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -71,12 +70,12 @@ var File_tag_proto protoreflect.FileDescriptor
 
 const file_tag_proto_rawDesc = "" +
 	"\n" +
-	"\ttag.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\"\"\n" +
+	"\ttag.proto\x1a\x1bgoogle/protobuf/empty.proto\"\"\n" +
 	"\fTagsResponse\x12\x12\n" +
-	"\x04tags\x18\x01 \x03(\tR\x04tags2Q\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags2>\n" +
 	"\n" +
-	"TagService\x12C\n" +
-	"\aGetTags\x12\x16.google.protobuf.Empty\x1a\r.TagsResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/api/tagsB3B\bTagProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"TagService\x120\n" +
+	"\aGetTags\x12\x16.google.protobuf.Empty\x1a\r.TagsResponseB3B\bTagProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_tag_proto_rawDescOnce sync.Once

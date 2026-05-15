@@ -7,7 +7,6 @@
 package pb
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -952,7 +951,7 @@ var File_article_proto protoreflect.FileDescriptor
 
 const file_article_proto_rawDesc = "" +
 	"\n" +
-	"\rarticle.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x01\n" +
+	"\rarticle.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x01\n" +
 	"\x19CreateArticleRequestInner\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
@@ -1029,16 +1028,16 @@ const file_article_proto_rawDesc = "" +
 	"\x06author\x18\t \x01(\v2\x0e.ArticleAuthorR\x06author\"g\n" +
 	"\x10ArticlesResponse\x12,\n" +
 	"\barticles\x18\x01 \x03(\v2\x10.ArticleListItemR\barticles\x12%\n" +
-	"\x0earticles_count\x18\x02 \x01(\x05R\rarticlesCount2\xfa\x05\n" +
-	"\x0eArticleService\x12X\n" +
-	"\rCreateArticle\x12\x15.CreateArticleRequest\x1a\x10.ArticleResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\aarticle\"\r/api/articles\x12\\\n" +
-	"\x10GetArticleBySlug\x12\x18.GetArticleBySlugRequest\x1a\x10.ArticleResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/articles/{slug}\x12_\n" +
-	"\rUpdateArticle\x12\x15.UpdateArticleRequest\x1a\x10.ArticleResponse\"%\x82\xd3\xe4\x93\x02\x1f:\aarticle\x1a\x14/api/articles/{slug}\x12c\n" +
-	"\x0fFavoriteArticle\x12\x17.FavoriteArticleRequest\x1a\x10.ArticleResponse\"%\x82\xd3\xe4\x93\x02\x1f\"\x1d/api/articles/{slug}/favorite\x12g\n" +
-	"\x11UnfavoriteArticle\x12\x19.UnfavoriteArticleRequest\x1a\x10.ArticleResponse\"%\x82\xd3\xe4\x93\x02\x1f*\x1d/api/articles/{slug}/favorite\x12\\\n" +
-	"\rDeleteArticle\x12\x15.DeleteArticleRequest\x1a\x16.google.protobuf.Empty\"\x1c\x82\xd3\xe4\x93\x02\x16*\x14/api/articles/{slug}\x12N\n" +
-	"\fListArticles\x12\x14.ListArticlesRequest\x1a\x11.ArticlesResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/articles\x12S\n" +
-	"\fFeedArticles\x12\x14.FeedArticlesRequest\x1a\x11.ArticlesResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/articles/feedB7B\fArticleProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"\x0earticles_count\x18\x02 \x01(\x05R\rarticlesCount2\xf6\x03\n" +
+	"\x0eArticleService\x128\n" +
+	"\rCreateArticle\x12\x15.CreateArticleRequest\x1a\x10.ArticleResponse\x12>\n" +
+	"\x10GetArticleBySlug\x12\x18.GetArticleBySlugRequest\x1a\x10.ArticleResponse\x128\n" +
+	"\rUpdateArticle\x12\x15.UpdateArticleRequest\x1a\x10.ArticleResponse\x12<\n" +
+	"\x0fFavoriteArticle\x12\x17.FavoriteArticleRequest\x1a\x10.ArticleResponse\x12@\n" +
+	"\x11UnfavoriteArticle\x12\x19.UnfavoriteArticleRequest\x1a\x10.ArticleResponse\x12>\n" +
+	"\rDeleteArticle\x12\x15.DeleteArticleRequest\x1a\x16.google.protobuf.Empty\x127\n" +
+	"\fListArticles\x12\x14.ListArticlesRequest\x1a\x11.ArticlesResponse\x127\n" +
+	"\fFeedArticles\x12\x14.FeedArticlesRequest\x1a\x11.ArticlesResponseB7B\fArticleProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_article_proto_rawDescOnce sync.Once

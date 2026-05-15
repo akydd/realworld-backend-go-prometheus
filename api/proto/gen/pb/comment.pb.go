@@ -7,7 +7,6 @@
 package pb
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -452,7 +451,7 @@ var File_comment_proto protoreflect.FileDescriptor
 
 const file_comment_proto_rawDesc = "" +
 	"\n" +
-	"\rcomment.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
+	"\rcomment.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
 	"\x19CreateCommentRequestInner\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\"`\n" +
 	"\x14CreateCommentRequest\x12\x12\n" +
@@ -481,11 +480,11 @@ const file_comment_proto_rawDesc = "" +
 	"\x0fCommentResponse\x12/\n" +
 	"\acomment\x18\x01 \x01(\v2\x15.CommentResponseInnerR\acomment\"E\n" +
 	"\x10CommentsResponse\x121\n" +
-	"\bcomments\x18\x01 \x03(\v2\x15.CommentResponseInnerR\bcomments2\xc4\x02\n" +
-	"\x0eCommentService\x12h\n" +
-	"\rCreateComment\x12\x15.CreateCommentRequest\x1a\x10.CommentResponse\".\x82\xd3\xe4\x93\x02(:\acomment\"\x1d/api/articles/{slug}/comments\x12\\\n" +
-	"\vGetComments\x12\x13.GetCommentsRequest\x1a\x11.CommentsResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/api/articles/{slug}/comments\x12j\n" +
-	"\rDeleteComment\x12\x15.DeleteCommentRequest\x1a\x16.google.protobuf.Empty\"*\x82\xd3\xe4\x93\x02$*\"/api/articles/{slug}/comments/{id}B7B\fCommentProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"\bcomments\x18\x01 \x03(\v2\x15.CommentResponseInnerR\bcomments2\xc1\x01\n" +
+	"\x0eCommentService\x128\n" +
+	"\rCreateComment\x12\x15.CreateCommentRequest\x1a\x10.CommentResponse\x125\n" +
+	"\vGetComments\x12\x13.GetCommentsRequest\x1a\x11.CommentsResponse\x12>\n" +
+	"\rDeleteComment\x12\x15.DeleteCommentRequest\x1a\x16.google.protobuf.EmptyB7B\fCommentProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_comment_proto_rawDescOnce sync.Once

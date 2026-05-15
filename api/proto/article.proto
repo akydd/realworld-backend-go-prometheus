@@ -2,60 +2,18 @@ syntax = "proto3";
 
 option go_package = "realworld-backend-go/api/proto/gen/pb";
 
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 service ArticleService {
-    rpc CreateArticle(CreateArticleRequest) returns (ArticleResponse) {
-        option (google.api.http) = {
-            post: "/api/articles"
-            body: "article"
-        };
-    }
-
-    rpc GetArticleBySlug(GetArticleBySlugRequest) returns (ArticleResponse) {
-        option (google.api.http) = {
-            get: "/api/articles/{slug}"
-        };
-    }
-
-    rpc UpdateArticle(UpdateArticleRequest) returns (ArticleResponse) {
-        option (google.api.http) = {
-            put: "/api/articles/{slug}"
-            body: "article"
-        };
-    }
-
-    rpc FavoriteArticle(FavoriteArticleRequest) returns (ArticleResponse) {
-        option (google.api.http) = {
-            post: "/api/articles/{slug}/favorite"
-        };
-    }
-
-    rpc UnfavoriteArticle(UnfavoriteArticleRequest) returns (ArticleResponse) {
-        option (google.api.http) = {
-            delete: "/api/articles/{slug}/favorite"
-        };
-    }
-
-    rpc DeleteArticle(DeleteArticleRequest) returns (google.protobuf.Empty) {
-        option (google.api.http) = {
-            delete: "/api/articles/{slug}"
-        };
-    }
-
-    rpc ListArticles(ListArticlesRequest) returns (ArticlesResponse) {
-        option (google.api.http) = {
-            get: "/api/articles"
-        };
-    }
-
-    rpc FeedArticles(FeedArticlesRequest) returns (ArticlesResponse) {
-        option (google.api.http) = {
-            get: "/api/articles/feed"
-        };
-    }
+    rpc CreateArticle(CreateArticleRequest) returns (ArticleResponse);
+    rpc GetArticleBySlug(GetArticleBySlugRequest) returns (ArticleResponse);
+    rpc UpdateArticle(UpdateArticleRequest) returns (ArticleResponse);
+    rpc FavoriteArticle(FavoriteArticleRequest) returns (ArticleResponse);
+    rpc UnfavoriteArticle(UnfavoriteArticleRequest) returns (ArticleResponse);
+    rpc DeleteArticle(DeleteArticleRequest) returns (google.protobuf.Empty);
+    rpc ListArticles(ListArticlesRequest) returns (ArticlesResponse);
+    rpc FeedArticles(FeedArticlesRequest) returns (ArticlesResponse);
 }
 
 message CreateArticleRequestInner {

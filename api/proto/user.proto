@@ -2,37 +2,13 @@ syntax = "proto3";
 
 option go_package = "realworld-backend-go/api/proto/gen/pb";
 
-
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
 service UserService {
-    rpc RegisterUser(RegisterUserRequest) returns (UserResponse) {
-        option (google.api.http) = {
-            post: "/api/users"
-            body: "user"
-        };
-    }
-
-    rpc LoginUser(LoginUserRequest) returns (UserResponse) {
-        option (google.api.http) = {
-            post: "/api/users/login"
-            body: "user"
-        };
-    }
-
-    rpc GetUser(google.protobuf.Empty) returns (UserResponse) {
-        option (google.api.http) = {
-            get: "/api/user"
-        };
-    }
-
-    rpc UpdateUser(UpdateUserRequest) returns (UserResponse) {
-        option (google.api.http) = {
-            put: "/api/user"
-            body: "user"
-        };
-    }
+    rpc RegisterUser(RegisterUserRequest) returns (UserResponse);
+    rpc LoginUser(LoginUserRequest) returns (UserResponse);
+    rpc GetUser(google.protobuf.Empty) returns (UserResponse);
+    rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
 }
 
 message RegisterUserRequestInner {

@@ -12,7 +12,3 @@ plugins:
     out: api/proto/gen/pb
     opt:
       - paths=source_relative
-  - local: protoc-gen-grpc-gateway
-    out: api/proto/gen/pb
-    opt:
-      - paths=source_relative

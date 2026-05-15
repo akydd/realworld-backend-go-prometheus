@@ -72,6 +72,24 @@ Features were written as plain-English specification files (e.g. `features/9-cre
 
 The infrastructure was designed and debugged collaboratively with Claude Code — including VPC layout, IAM policy scoping, ECS service configuration, and resolving deployment issues.
 
+## gRPC API
+
+The server exposes a native gRPC API on port **8099** alongside the existing HTTP API. The gRPC service definitions live in `api/proto/` and the generated Go code is in `api/proto/gen/pb/`. To regenerate after editing a `.proto` file:
+
+```bash
+make proto
+```
+
+**Why run HTTP and gRPC as separate servers rather than using grpc-gateway?**
+
+[grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) can translate HTTP/JSON requests into gRPC calls, which sounds appealing — one set of handlers serving both protocols. In practice, making the HTTP path spec-compliant with the RealWorld API spec required too many compromises:
+
+- **Error body shape** — the spec requires `{"errors": {"field": ["message"]}}`. grpc-gateway produces its own JSON error envelope; matching the spec would require a custom error handler rewriting every error response.
+- **Status code mismatches** — the spec requires HTTP 422 for validation errors and 409 for duplicates. gRPC's `codes.InvalidArgument` maps to HTTP 400, not 422, with no standard override.
+- **Null field semantics** — `PUT /api/user` distinguishes `bio: null` (clear the field) from `bio` absent (leave unchanged). proto3 cannot represent this distinction, so the grpc-gateway HTTP path would silently drop the "clear" behaviour.
+
+Running both servers independently avoids all of this. The existing HTTP server is already fully spec-compliant and integration-tested; the gRPC server provides a typed interface for native gRPC clients. Both delegate to the same domain layer, so there is no business logic duplication.
+
 ## Running the app
 
 **Prerequisites:** Docker, Go 1.21+
