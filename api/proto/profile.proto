@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option go_package = "realworld-backend-go/api/proto/gen/pb";
+
+
+import "google/api/annotations.proto";
+
+service ProfileService {
+    rpc GetProfile(GetProfileRequest) returns (ProfileResponse) {
+        option (google.api.http) = {
+            get: "/api/profiles/{username}"
+        };
+    }
+
+    rpc FollowUser(FollowUserRequest) returns (ProfileResponse) {
+        option (google.api.http) = {
+            post: "/api/profiles/{username}/follow"
+        };
+    }
+
+    rpc UnfollowUser(UnfollowUserRequest) returns (ProfileResponse) {
+        option (google.api.http) = {
+            delete: "/api/profiles/{username}/follow"
+        };
+    }
+}
+
+message ProfileResponseInner {
+    string username = 1;
+    optional string bio = 2;
+    optional string image = 3;
+    bool following = 4;
+}
+
+message ProfileResponse {
+    ProfileResponseInner profile = 1;
+}
+
+message GetProfileRequest {
+    string username = 1;
+}
+
+message FollowUserRequest {
+    string username = 1;
+}
+
+message UnfollowUserRequest {
+    string username = 1;
+}

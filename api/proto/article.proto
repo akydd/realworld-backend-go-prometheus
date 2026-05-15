@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+option go_package = "realworld-backend-go/api/proto/gen/pb";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service ArticleService {
+    rpc CreateArticle(CreateArticleRequest) returns (ArticleResponse) {
+        option (google.api.http) = {
+            post: "/api/articles"
+            body: "article"
+        };
+    }
+
+    rpc GetArticleBySlug(GetArticleBySlugRequest) returns (ArticleResponse) {
+        option (google.api.http) = {
+            get: "/api/articles/{slug}"
+        };
+    }
+
+    rpc UpdateArticle(UpdateArticleRequest) returns (ArticleResponse) {
+        option (google.api.http) = {
+            put: "/api/articles/{slug}"
+            body: "article"
+        };
+    }
+
+    rpc FavoriteArticle(FavoriteArticleRequest) returns (ArticleResponse) {
+        option (google.api.http) = {
+            post: "/api/articles/{slug}/favorite"
+        };
+    }
+
+    rpc UnfavoriteArticle(UnfavoriteArticleRequest) returns (ArticleResponse) {
+        option (google.api.http) = {
+            delete: "/api/articles/{slug}/favorite"
+        };
+    }
+
+    rpc DeleteArticle(DeleteArticleRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            delete: "/api/articles/{slug}"
+        };
+    }
+
+    rpc ListArticles(ListArticlesRequest) returns (ArticlesResponse) {
+        option (google.api.http) = {
+            get: "/api/articles"
+        };
+    }
+
+    rpc FeedArticles(FeedArticlesRequest) returns (ArticlesResponse) {
+        option (google.api.http) = {
+            get: "/api/articles/feed"
+        };
+    }
+}
+
+message CreateArticleRequestInner {
+    string title = 1;
+    string description = 2;
+    string body = 3;
+    repeated string tag_list = 4;
+}
+
+message CreateArticleRequest {
+    CreateArticleRequestInner article = 1;
+}
+
+message GetArticleBySlugRequest {
+    string slug = 1;
+}
+
+message UpdateArticleRequestInner {
+    optional string title = 1;
+    optional string description = 2;
+    optional string body = 3;
+    repeated string tag_list = 4;
+}
+
+message UpdateArticleRequest {
+    string slug = 1;
+    UpdateArticleRequestInner article = 2;
+}
+
+message FavoriteArticleRequest {
+    string slug = 1;
+}
+
+message UnfavoriteArticleRequest {
+    string slug = 1;
+}
+
+message DeleteArticleRequest {
+    string slug = 1;
+}
+
+message ListArticlesRequest {
+    optional string tag = 1;
+    optional string author = 2;
+    optional string favorited = 3;
+    int32 limit = 4;
+    int32 offset = 5;
+}
+
+message FeedArticlesRequest {
+    int32 limit = 1;
+    int32 offset = 2;
+}
+
+message ArticleAuthor {
+    string username = 1;
+    optional string bio = 2;
+    optional string image = 3;
+    bool following = 4;
+}
+
+message ArticleResponseInner {
+    string slug = 1;
+    string title = 2;
+    string description = 3;
+    string body = 4;
+    repeated string tag_list = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+    bool favorited = 8;
+    int32 favorites_count = 9;
+    ArticleAuthor author = 10;
+}
+
+message ArticleResponse {
+    ArticleResponseInner article = 1;
+}
+
+message ArticleListItem {
+    string slug = 1;
+    string title = 2;
+    string description = 3;
+    repeated string tag_list = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+    bool favorited = 7;
+    int32 favorites_count = 8;
+    ArticleAuthor author = 9;
+}
+
+message ArticlesResponse {
+    repeated ArticleListItem articles = 1;
+    int32 articles_count = 2;
+}

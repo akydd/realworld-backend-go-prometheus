@@ -1,10 +1,13 @@
-.PHONY: int-tests lint start
+.PHONY: int-tests lint start proto
 
 start:
 	docker compose up -d
 	until docker compose exec -T db pg_isready -U admin -d app; do sleep 1; done
 	go build ./cmd/server
 	./server
+
+proto:
+	buf generate
 
 lint:
 	golangci-lint run ./...
