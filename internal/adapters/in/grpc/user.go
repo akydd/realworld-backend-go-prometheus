@@ -44,7 +44,7 @@ func (u *UserServer) RegisterUser(ctx context.Context, in *pb.RegisterUserReques
 		if errors.As(err, &dupErr) {
 			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("%s %s", dupErr.Field, dupErr.Msg))
 		} else if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("%s", err.Error()))
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -73,7 +73,7 @@ func (u *UserServer) LoginUser(ctx context.Context, in *pb.LoginUserRequest) (*p
 		var validationErr *domain.ValidationError
 		var credErr *domain.CredentialsError
 		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("%s", err.Error()))
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		} else if errors.As(err, &credErr) {
 			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
 		}
