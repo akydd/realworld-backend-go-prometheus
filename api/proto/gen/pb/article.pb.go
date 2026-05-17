@@ -179,19 +179,63 @@ func (x *GetArticleBySlugRequest) GetSlug() string {
 	return ""
 }
 
+type TagListValue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tags          []string               `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TagListValue) Reset() {
+	*x = TagListValue{}
+	mi := &file_article_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TagListValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TagListValue) ProtoMessage() {}
+
+func (x *TagListValue) ProtoReflect() protoreflect.Message {
+	mi := &file_article_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TagListValue.ProtoReflect.Descriptor instead.
+func (*TagListValue) Descriptor() ([]byte, []int) {
+	return file_article_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TagListValue) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 type UpdateArticleRequestInner struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Title         *string                `protobuf:"bytes,1,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Body          *string                `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
-	TagList       []string               `protobuf:"bytes,4,rep,name=tag_list,json=tagList,proto3" json:"tag_list,omitempty"`
+	TagList       *TagListValue          `protobuf:"bytes,4,opt,name=tag_list,json=tagList,proto3,oneof" json:"tag_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateArticleRequestInner) Reset() {
 	*x = UpdateArticleRequestInner{}
-	mi := &file_article_proto_msgTypes[3]
+	mi := &file_article_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +247,7 @@ func (x *UpdateArticleRequestInner) String() string {
 func (*UpdateArticleRequestInner) ProtoMessage() {}
 
 func (x *UpdateArticleRequestInner) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[3]
+	mi := &file_article_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +260,7 @@ func (x *UpdateArticleRequestInner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateArticleRequestInner.ProtoReflect.Descriptor instead.
 func (*UpdateArticleRequestInner) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{3}
+	return file_article_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateArticleRequestInner) GetTitle() string {
@@ -240,7 +284,7 @@ func (x *UpdateArticleRequestInner) GetBody() string {
 	return ""
 }
 
-func (x *UpdateArticleRequestInner) GetTagList() []string {
+func (x *UpdateArticleRequestInner) GetTagList() *TagListValue {
 	if x != nil {
 		return x.TagList
 	}
@@ -257,7 +301,7 @@ type UpdateArticleRequest struct {
 
 func (x *UpdateArticleRequest) Reset() {
 	*x = UpdateArticleRequest{}
-	mi := &file_article_proto_msgTypes[4]
+	mi := &file_article_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +313,7 @@ func (x *UpdateArticleRequest) String() string {
 func (*UpdateArticleRequest) ProtoMessage() {}
 
 func (x *UpdateArticleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[4]
+	mi := &file_article_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +326,7 @@ func (x *UpdateArticleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateArticleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateArticleRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{4}
+	return file_article_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateArticleRequest) GetSlug() string {
@@ -308,7 +352,7 @@ type FavoriteArticleRequest struct {
 
 func (x *FavoriteArticleRequest) Reset() {
 	*x = FavoriteArticleRequest{}
-	mi := &file_article_proto_msgTypes[5]
+	mi := &file_article_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +364,7 @@ func (x *FavoriteArticleRequest) String() string {
 func (*FavoriteArticleRequest) ProtoMessage() {}
 
 func (x *FavoriteArticleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[5]
+	mi := &file_article_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +377,7 @@ func (x *FavoriteArticleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FavoriteArticleRequest.ProtoReflect.Descriptor instead.
 func (*FavoriteArticleRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{5}
+	return file_article_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FavoriteArticleRequest) GetSlug() string {
@@ -352,7 +396,7 @@ type UnfavoriteArticleRequest struct {
 
 func (x *UnfavoriteArticleRequest) Reset() {
 	*x = UnfavoriteArticleRequest{}
-	mi := &file_article_proto_msgTypes[6]
+	mi := &file_article_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -364,7 +408,7 @@ func (x *UnfavoriteArticleRequest) String() string {
 func (*UnfavoriteArticleRequest) ProtoMessage() {}
 
 func (x *UnfavoriteArticleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[6]
+	mi := &file_article_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -377,7 +421,7 @@ func (x *UnfavoriteArticleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnfavoriteArticleRequest.ProtoReflect.Descriptor instead.
 func (*UnfavoriteArticleRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{6}
+	return file_article_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UnfavoriteArticleRequest) GetSlug() string {
@@ -396,7 +440,7 @@ type DeleteArticleRequest struct {
 
 func (x *DeleteArticleRequest) Reset() {
 	*x = DeleteArticleRequest{}
-	mi := &file_article_proto_msgTypes[7]
+	mi := &file_article_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +452,7 @@ func (x *DeleteArticleRequest) String() string {
 func (*DeleteArticleRequest) ProtoMessage() {}
 
 func (x *DeleteArticleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[7]
+	mi := &file_article_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +465,7 @@ func (x *DeleteArticleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteArticleRequest.ProtoReflect.Descriptor instead.
 func (*DeleteArticleRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{7}
+	return file_article_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DeleteArticleRequest) GetSlug() string {
@@ -444,7 +488,7 @@ type ListArticlesRequest struct {
 
 func (x *ListArticlesRequest) Reset() {
 	*x = ListArticlesRequest{}
-	mi := &file_article_proto_msgTypes[8]
+	mi := &file_article_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +500,7 @@ func (x *ListArticlesRequest) String() string {
 func (*ListArticlesRequest) ProtoMessage() {}
 
 func (x *ListArticlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[8]
+	mi := &file_article_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,7 +513,7 @@ func (x *ListArticlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArticlesRequest.ProtoReflect.Descriptor instead.
 func (*ListArticlesRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{8}
+	return file_article_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListArticlesRequest) GetTag() string {
@@ -517,7 +561,7 @@ type FeedArticlesRequest struct {
 
 func (x *FeedArticlesRequest) Reset() {
 	*x = FeedArticlesRequest{}
-	mi := &file_article_proto_msgTypes[9]
+	mi := &file_article_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +573,7 @@ func (x *FeedArticlesRequest) String() string {
 func (*FeedArticlesRequest) ProtoMessage() {}
 
 func (x *FeedArticlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[9]
+	mi := &file_article_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +586,7 @@ func (x *FeedArticlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedArticlesRequest.ProtoReflect.Descriptor instead.
 func (*FeedArticlesRequest) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{9}
+	return file_article_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FeedArticlesRequest) GetLimit() int32 {
@@ -571,7 +615,7 @@ type ArticleAuthor struct {
 
 func (x *ArticleAuthor) Reset() {
 	*x = ArticleAuthor{}
-	mi := &file_article_proto_msgTypes[10]
+	mi := &file_article_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +627,7 @@ func (x *ArticleAuthor) String() string {
 func (*ArticleAuthor) ProtoMessage() {}
 
 func (x *ArticleAuthor) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[10]
+	mi := &file_article_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +640,7 @@ func (x *ArticleAuthor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleAuthor.ProtoReflect.Descriptor instead.
 func (*ArticleAuthor) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{10}
+	return file_article_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ArticleAuthor) GetUsername() string {
@@ -645,7 +689,7 @@ type ArticleResponseInner struct {
 
 func (x *ArticleResponseInner) Reset() {
 	*x = ArticleResponseInner{}
-	mi := &file_article_proto_msgTypes[11]
+	mi := &file_article_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +701,7 @@ func (x *ArticleResponseInner) String() string {
 func (*ArticleResponseInner) ProtoMessage() {}
 
 func (x *ArticleResponseInner) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[11]
+	mi := &file_article_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +714,7 @@ func (x *ArticleResponseInner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleResponseInner.ProtoReflect.Descriptor instead.
 func (*ArticleResponseInner) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{11}
+	return file_article_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ArticleResponseInner) GetSlug() string {
@@ -752,7 +796,7 @@ type ArticleResponse struct {
 
 func (x *ArticleResponse) Reset() {
 	*x = ArticleResponse{}
-	mi := &file_article_proto_msgTypes[12]
+	mi := &file_article_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -764,7 +808,7 @@ func (x *ArticleResponse) String() string {
 func (*ArticleResponse) ProtoMessage() {}
 
 func (x *ArticleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[12]
+	mi := &file_article_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -777,7 +821,7 @@ func (x *ArticleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleResponse.ProtoReflect.Descriptor instead.
 func (*ArticleResponse) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{12}
+	return file_article_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ArticleResponse) GetArticle() *ArticleResponseInner {
@@ -804,7 +848,7 @@ type ArticleListItem struct {
 
 func (x *ArticleListItem) Reset() {
 	*x = ArticleListItem{}
-	mi := &file_article_proto_msgTypes[13]
+	mi := &file_article_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -816,7 +860,7 @@ func (x *ArticleListItem) String() string {
 func (*ArticleListItem) ProtoMessage() {}
 
 func (x *ArticleListItem) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[13]
+	mi := &file_article_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +873,7 @@ func (x *ArticleListItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleListItem.ProtoReflect.Descriptor instead.
 func (*ArticleListItem) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{13}
+	return file_article_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ArticleListItem) GetSlug() string {
@@ -905,7 +949,7 @@ type ArticlesResponse struct {
 
 func (x *ArticlesResponse) Reset() {
 	*x = ArticlesResponse{}
-	mi := &file_article_proto_msgTypes[14]
+	mi := &file_article_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +961,7 @@ func (x *ArticlesResponse) String() string {
 func (*ArticlesResponse) ProtoMessage() {}
 
 func (x *ArticlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_article_proto_msgTypes[14]
+	mi := &file_article_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +974,7 @@ func (x *ArticlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticlesResponse.ProtoReflect.Descriptor instead.
 func (*ArticlesResponse) Descriptor() ([]byte, []int) {
-	return file_article_proto_rawDescGZIP(), []int{14}
+	return file_article_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ArticlesResponse) GetArticles() []*ArticleListItem {
@@ -960,15 +1004,18 @@ const file_article_proto_rawDesc = "" +
 	"\x14CreateArticleRequest\x124\n" +
 	"\aarticle\x18\x01 \x01(\v2\x1a.CreateArticleRequestInnerR\aarticle\"-\n" +
 	"\x17GetArticleBySlugRequest\x12\x12\n" +
-	"\x04slug\x18\x01 \x01(\tR\x04slug\"\xb4\x01\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"\"\n" +
+	"\fTagListValue\x12\x12\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\"\xd5\x01\n" +
 	"\x19UpdateArticleRequestInner\x12\x19\n" +
 	"\x05title\x18\x01 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x17\n" +
-	"\x04body\x18\x03 \x01(\tH\x02R\x04body\x88\x01\x01\x12\x19\n" +
-	"\btag_list\x18\x04 \x03(\tR\atagListB\b\n" +
+	"\x04body\x18\x03 \x01(\tH\x02R\x04body\x88\x01\x01\x12-\n" +
+	"\btag_list\x18\x04 \x01(\v2\r.TagListValueH\x03R\atagList\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\a\n" +
-	"\x05_body\"`\n" +
+	"\x05_bodyB\v\n" +
+	"\t_tag_list\"`\n" +
 	"\x14UpdateArticleRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x124\n" +
 	"\aarticle\x18\x02 \x01(\v2\x1a.UpdateArticleRequestInnerR\aarticle\",\n" +
@@ -1051,58 +1098,60 @@ func file_article_proto_rawDescGZIP() []byte {
 	return file_article_proto_rawDescData
 }
 
-var file_article_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_article_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_article_proto_goTypes = []any{
 	(*CreateArticleRequestInner)(nil), // 0: CreateArticleRequestInner
 	(*CreateArticleRequest)(nil),      // 1: CreateArticleRequest
 	(*GetArticleBySlugRequest)(nil),   // 2: GetArticleBySlugRequest
-	(*UpdateArticleRequestInner)(nil), // 3: UpdateArticleRequestInner
-	(*UpdateArticleRequest)(nil),      // 4: UpdateArticleRequest
-	(*FavoriteArticleRequest)(nil),    // 5: FavoriteArticleRequest
-	(*UnfavoriteArticleRequest)(nil),  // 6: UnfavoriteArticleRequest
-	(*DeleteArticleRequest)(nil),      // 7: DeleteArticleRequest
-	(*ListArticlesRequest)(nil),       // 8: ListArticlesRequest
-	(*FeedArticlesRequest)(nil),       // 9: FeedArticlesRequest
-	(*ArticleAuthor)(nil),             // 10: ArticleAuthor
-	(*ArticleResponseInner)(nil),      // 11: ArticleResponseInner
-	(*ArticleResponse)(nil),           // 12: ArticleResponse
-	(*ArticleListItem)(nil),           // 13: ArticleListItem
-	(*ArticlesResponse)(nil),          // 14: ArticlesResponse
-	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),             // 16: google.protobuf.Empty
+	(*TagListValue)(nil),              // 3: TagListValue
+	(*UpdateArticleRequestInner)(nil), // 4: UpdateArticleRequestInner
+	(*UpdateArticleRequest)(nil),      // 5: UpdateArticleRequest
+	(*FavoriteArticleRequest)(nil),    // 6: FavoriteArticleRequest
+	(*UnfavoriteArticleRequest)(nil),  // 7: UnfavoriteArticleRequest
+	(*DeleteArticleRequest)(nil),      // 8: DeleteArticleRequest
+	(*ListArticlesRequest)(nil),       // 9: ListArticlesRequest
+	(*FeedArticlesRequest)(nil),       // 10: FeedArticlesRequest
+	(*ArticleAuthor)(nil),             // 11: ArticleAuthor
+	(*ArticleResponseInner)(nil),      // 12: ArticleResponseInner
+	(*ArticleResponse)(nil),           // 13: ArticleResponse
+	(*ArticleListItem)(nil),           // 14: ArticleListItem
+	(*ArticlesResponse)(nil),          // 15: ArticlesResponse
+	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),             // 17: google.protobuf.Empty
 }
 var file_article_proto_depIdxs = []int32{
 	0,  // 0: CreateArticleRequest.article:type_name -> CreateArticleRequestInner
-	3,  // 1: UpdateArticleRequest.article:type_name -> UpdateArticleRequestInner
-	15, // 2: ArticleResponseInner.created_at:type_name -> google.protobuf.Timestamp
-	15, // 3: ArticleResponseInner.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 4: ArticleResponseInner.author:type_name -> ArticleAuthor
-	11, // 5: ArticleResponse.article:type_name -> ArticleResponseInner
-	15, // 6: ArticleListItem.created_at:type_name -> google.protobuf.Timestamp
-	15, // 7: ArticleListItem.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 8: ArticleListItem.author:type_name -> ArticleAuthor
-	13, // 9: ArticlesResponse.articles:type_name -> ArticleListItem
-	1,  // 10: ArticleService.CreateArticle:input_type -> CreateArticleRequest
-	2,  // 11: ArticleService.GetArticleBySlug:input_type -> GetArticleBySlugRequest
-	4,  // 12: ArticleService.UpdateArticle:input_type -> UpdateArticleRequest
-	5,  // 13: ArticleService.FavoriteArticle:input_type -> FavoriteArticleRequest
-	6,  // 14: ArticleService.UnfavoriteArticle:input_type -> UnfavoriteArticleRequest
-	7,  // 15: ArticleService.DeleteArticle:input_type -> DeleteArticleRequest
-	8,  // 16: ArticleService.ListArticles:input_type -> ListArticlesRequest
-	9,  // 17: ArticleService.FeedArticles:input_type -> FeedArticlesRequest
-	12, // 18: ArticleService.CreateArticle:output_type -> ArticleResponse
-	12, // 19: ArticleService.GetArticleBySlug:output_type -> ArticleResponse
-	12, // 20: ArticleService.UpdateArticle:output_type -> ArticleResponse
-	12, // 21: ArticleService.FavoriteArticle:output_type -> ArticleResponse
-	12, // 22: ArticleService.UnfavoriteArticle:output_type -> ArticleResponse
-	16, // 23: ArticleService.DeleteArticle:output_type -> google.protobuf.Empty
-	14, // 24: ArticleService.ListArticles:output_type -> ArticlesResponse
-	14, // 25: ArticleService.FeedArticles:output_type -> ArticlesResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	3,  // 1: UpdateArticleRequestInner.tag_list:type_name -> TagListValue
+	4,  // 2: UpdateArticleRequest.article:type_name -> UpdateArticleRequestInner
+	16, // 3: ArticleResponseInner.created_at:type_name -> google.protobuf.Timestamp
+	16, // 4: ArticleResponseInner.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 5: ArticleResponseInner.author:type_name -> ArticleAuthor
+	12, // 6: ArticleResponse.article:type_name -> ArticleResponseInner
+	16, // 7: ArticleListItem.created_at:type_name -> google.protobuf.Timestamp
+	16, // 8: ArticleListItem.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 9: ArticleListItem.author:type_name -> ArticleAuthor
+	14, // 10: ArticlesResponse.articles:type_name -> ArticleListItem
+	1,  // 11: ArticleService.CreateArticle:input_type -> CreateArticleRequest
+	2,  // 12: ArticleService.GetArticleBySlug:input_type -> GetArticleBySlugRequest
+	5,  // 13: ArticleService.UpdateArticle:input_type -> UpdateArticleRequest
+	6,  // 14: ArticleService.FavoriteArticle:input_type -> FavoriteArticleRequest
+	7,  // 15: ArticleService.UnfavoriteArticle:input_type -> UnfavoriteArticleRequest
+	8,  // 16: ArticleService.DeleteArticle:input_type -> DeleteArticleRequest
+	9,  // 17: ArticleService.ListArticles:input_type -> ListArticlesRequest
+	10, // 18: ArticleService.FeedArticles:input_type -> FeedArticlesRequest
+	13, // 19: ArticleService.CreateArticle:output_type -> ArticleResponse
+	13, // 20: ArticleService.GetArticleBySlug:output_type -> ArticleResponse
+	13, // 21: ArticleService.UpdateArticle:output_type -> ArticleResponse
+	13, // 22: ArticleService.FavoriteArticle:output_type -> ArticleResponse
+	13, // 23: ArticleService.UnfavoriteArticle:output_type -> ArticleResponse
+	17, // 24: ArticleService.DeleteArticle:output_type -> google.protobuf.Empty
+	15, // 25: ArticleService.ListArticles:output_type -> ArticlesResponse
+	15, // 26: ArticleService.FeedArticles:output_type -> ArticlesResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_article_proto_init() }
@@ -1110,16 +1159,16 @@ func file_article_proto_init() {
 	if File_article_proto != nil {
 		return
 	}
-	file_article_proto_msgTypes[3].OneofWrappers = []any{}
-	file_article_proto_msgTypes[8].OneofWrappers = []any{}
-	file_article_proto_msgTypes[10].OneofWrappers = []any{}
+	file_article_proto_msgTypes[4].OneofWrappers = []any{}
+	file_article_proto_msgTypes[9].OneofWrappers = []any{}
+	file_article_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_article_proto_rawDesc), len(file_article_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

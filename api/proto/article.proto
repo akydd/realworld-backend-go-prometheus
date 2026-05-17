@@ -31,11 +31,15 @@ message GetArticleBySlugRequest {
     string slug = 1;
 }
 
+message TagListValue {
+    repeated string tags = 1;
+}
+
 message UpdateArticleRequestInner {
     optional string title = 1;
     optional string description = 2;
     optional string body = 3;
-    repeated string tag_list = 4;
+    optional TagListValue tag_list = 4;
 }
 
 message UpdateArticleRequest {

@@ -139,7 +139,8 @@ func (s *ArticleServer) UpdateArticle(ctx context.Context, in *pb.UpdateArticleR
 		Description: inner.Description,
 		Body:        inner.Body,
 	}
-	if tags := inner.GetTagList(); len(tags) > 0 {
+	if tl := inner.TagList; tl != nil {
+		tags := tl.GetTags()
 		u.TagList = &tags
 	}
 

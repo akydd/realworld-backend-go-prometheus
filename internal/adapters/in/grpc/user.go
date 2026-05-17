@@ -121,11 +121,21 @@ func (u *UserServer) UpdateUser(ctx context.Context, in *pb.UpdateUserRequest) (
 		Username: inner.Username,
 		Password: inner.Password,
 	}
-	if bio := inner.Bio; bio != nil {
-		d.Bio = &bio
+	if ns := inner.Bio; ns != nil {
+		if v := ns.Value; v != "" {
+			vp := &v
+			d.Bio = &vp
+		} else {
+			d.Bio = new(*string)
+		}
 	}
-	if image := inner.Image; image != nil {
-		d.Image = &image
+	if ns := inner.Image; ns != nil {
+		if v := ns.Value; v != "" {
+			vp := &v
+			d.Image = &vp
+		} else {
+			d.Image = new(*string)
+		}
 	}
 
 	user, err := u.userService.UpdateUser(ctx, userID, d)

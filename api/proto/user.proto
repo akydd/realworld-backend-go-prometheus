@@ -42,10 +42,14 @@ message LoginUserRequest {
     LoginUserRequestInner user = 1;
 }
 
+message NullableString {
+    string value = 1;
+}
+
 message UpdateUserRequestInner {
     optional string email = 1;
-    optional string bio = 2;
-    optional string image = 3;
+    optional NullableString bio = 2;
+    optional NullableString image = 3;
     optional string username = 4;
     optional string password = 5;
 }
