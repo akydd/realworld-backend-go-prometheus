@@ -49,7 +49,7 @@ func (u *UserServer) RegisterUser(ctx context.Context, in *pb.RegisterUserReques
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	resp := &pb.UserResponse{
+	return &pb.UserResponse{
 		User: &pb.UserResponseInner{
 			Email:    user.Email,
 			Token:    user.Token,
@@ -57,9 +57,7 @@ func (u *UserServer) RegisterUser(ctx context.Context, in *pb.RegisterUserReques
 			Bio:      user.Bio,
 			Image:    user.Image,
 		},
-	}
-
-	return resp, nil
+	}, nil
 }
 
 func (u *UserServer) LoginUser(ctx context.Context, in *pb.LoginUserRequest) (*pb.UserResponse, error) {
@@ -80,7 +78,7 @@ func (u *UserServer) LoginUser(ctx context.Context, in *pb.LoginUserRequest) (*p
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	resp := &pb.UserResponse{
+	return &pb.UserResponse{
 		User: &pb.UserResponseInner{
 			Email:    user.Email,
 			Token:    user.Token,
@@ -88,14 +86,70 @@ func (u *UserServer) LoginUser(ctx context.Context, in *pb.LoginUserRequest) (*p
 			Bio:      user.Bio,
 			Image:    user.Image,
 		},
-	}
-	return resp, nil
+	}, nil
 }
 
 func (u *UserServer) GetUser(ctx context.Context, in *emptypb.Empty) (*pb.UserResponse, error) {
-	return nil, nil
+	userID := ctx.Value(UserIDKey).(int)
+
+	user, err := u.userService.GetUser(ctx, userID)
+	if err != nil {
+		var credErr *domain.CredentialsError
+		if errors.As(err, &credErr) {
+			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.UserResponse{
+		User: &pb.UserResponseInner{
+			Email:    user.Email,
+			Token:    user.Token,
+			Username: user.Username,
+			Bio:      user.Bio,
+			Image:    user.Image,
+		},
+	}, nil
 }
 
 func (u *UserServer) UpdateUser(ctx context.Context, in *pb.UpdateUserRequest) (*pb.UserResponse, error) {
-	return nil, nil
+	userID := ctx.Value(UserIDKey).(int)
+
+	inner := in.GetUser()
+	d := &domain.UpdateUser{
+		Email:    inner.Email,
+		Username: inner.Username,
+		Password: inner.Password,
+	}
+	if bio := inner.Bio; bio != nil {
+		d.Bio = &bio
+	}
+	if image := inner.Image; image != nil {
+		d.Image = &image
+	}
+
+	user, err := u.userService.UpdateUser(ctx, userID, d)
+	if err != nil {
+		var validationErr *domain.ValidationError
+		var credErr *domain.CredentialsError
+		var dupErr *domain.DuplicateError
+		if errors.As(err, &validationErr) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		} else if errors.As(err, &credErr) {
+			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
+		} else if errors.As(err, &dupErr) {
+			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("%s %s", dupErr.Field, dupErr.Msg))
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.UserResponse{
+		User: &pb.UserResponseInner{
+			Email:    user.Email,
+			Token:    user.Token,
+			Username: user.Username,
+			Bio:      user.Bio,
+			Image:    user.Image,
+		},
+	}, nil
 }

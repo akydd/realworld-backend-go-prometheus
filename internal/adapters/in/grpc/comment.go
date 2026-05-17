@@ -2,9 +2,12 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -40,13 +43,33 @@ func commentToProto(c *domain.Comment) *pb.CommentResponseInner {
 }
 
 func (s *CommentServer) CreateComment(ctx context.Context, in *pb.CreateCommentRequest) (*pb.CommentResponse, error) {
-	return nil, nil
+	authorID := ctx.Value(UserIDKey).(int)
+
+	comment, err := s.commentService.CreateComment(ctx, authorID, in.GetSlug(), &domain.CreateComment{Body: in.GetComment().GetBody()})
+	if err != nil {
+		var validationErr *domain.ValidationError
+		var notFoundErr *domain.ArticleNotFoundError
+		if errors.As(err, &validationErr) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		} else if errors.As(err, &notFoundErr) {
+			return nil, status.Error(codes.NotFound, "article not found")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.CommentResponse{Comment: commentToProto(comment)}, nil
 }
 
 func (s *CommentServer) GetComments(ctx context.Context, in *pb.GetCommentsRequest) (*pb.CommentsResponse, error) {
-	comments, err := s.commentService.GetComments(ctx, in.GetSlug(), 0)
+	viewerID, _ := ctx.Value(UserIDKey).(int)
+
+	comments, err := s.commentService.GetComments(ctx, in.GetSlug(), viewerID)
 	if err != nil {
-		return nil, err
+		var notFoundErr *domain.ArticleNotFoundError
+		if errors.As(err, &notFoundErr) {
+			return nil, status.Error(codes.NotFound, "article not found")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	items := make([]*pb.CommentResponseInner, 0, len(comments))
@@ -57,5 +80,22 @@ func (s *CommentServer) GetComments(ctx context.Context, in *pb.GetCommentsReque
 }
 
 func (s *CommentServer) DeleteComment(ctx context.Context, in *pb.DeleteCommentRequest) (*emptypb.Empty, error) {
-	return nil, nil
+	callerID := ctx.Value(UserIDKey).(int)
+
+	err := s.commentService.DeleteComment(ctx, callerID, in.GetSlug(), int(in.GetId()))
+	if err != nil {
+		var notFoundArticle *domain.ArticleNotFoundError
+		var notFoundComment *domain.CommentNotFoundError
+		var forbiddenErr *domain.ForbiddenError
+		if errors.As(err, &notFoundArticle) {
+			return nil, status.Error(codes.NotFound, "article not found")
+		} else if errors.As(err, &notFoundComment) {
+			return nil, status.Error(codes.NotFound, "comment not found")
+		} else if errors.As(err, &forbiddenErr) {
+			return nil, status.Error(codes.PermissionDenied, "forbidden")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &emptypb.Empty{}, nil
 }

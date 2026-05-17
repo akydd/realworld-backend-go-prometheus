@@ -2,8 +2,12 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type profileService interface {
@@ -32,18 +36,40 @@ func profileToProto(p *domain.Profile) *pb.ProfileResponse {
 	}
 }
 
+func profileErr(err error) error {
+	var notFoundErr *domain.ProfileNotFoundError
+	if errors.As(err, &notFoundErr) {
+		return status.Error(codes.NotFound, "profile not found")
+	}
+	return status.Error(codes.Internal, err.Error())
+}
+
 func (s *ProfileServer) GetProfile(ctx context.Context, in *pb.GetProfileRequest) (*pb.ProfileResponse, error) {
-	profile, err := s.profileService.GetProfile(ctx, in.GetUsername(), 0)
+	viewerID, _ := ctx.Value(UserIDKey).(int)
+
+	profile, err := s.profileService.GetProfile(ctx, in.GetUsername(), viewerID)
 	if err != nil {
-		return nil, err
+		return nil, profileErr(err)
 	}
 	return profileToProto(profile), nil
 }
 
 func (s *ProfileServer) FollowUser(ctx context.Context, in *pb.FollowUserRequest) (*pb.ProfileResponse, error) {
-	return nil, nil
+	followerID := ctx.Value(UserIDKey).(int)
+
+	profile, err := s.profileService.FollowUser(ctx, followerID, in.GetUsername())
+	if err != nil {
+		return nil, profileErr(err)
+	}
+	return profileToProto(profile), nil
 }
 
 func (s *ProfileServer) UnfollowUser(ctx context.Context, in *pb.UnfollowUserRequest) (*pb.ProfileResponse, error) {
-	return nil, nil
+	followerID := ctx.Value(UserIDKey).(int)
+
+	profile, err := s.profileService.UnfollowUser(ctx, followerID, in.GetUsername())
+	if err != nil {
+		return nil, profileErr(err)
+	}
+	return profileToProto(profile), nil
 }
