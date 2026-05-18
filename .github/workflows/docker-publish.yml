@@ -30,6 +30,14 @@ jobs:
       - name: Run integration tests
         run: make int-tests SPECS_DIR=realworld-specs
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run gRPC integration tests
+        run: make int-tests-grpc
+
 #  build-and-push:
 #    needs: test
 #    runs-on: ubuntu-latest
