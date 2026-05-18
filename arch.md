@@ -8,7 +8,16 @@ A [RealWorld](https://github.com/gothinkster/realworld) backend implementation i
 
 ```
 realworld-backend-go/
-├── cmd/server/server.go              # Entry point
+├── cmd/server/server.go              # Entry point — wires domain, HTTP, and gRPC
+├── api/proto/                        # Protobuf service definitions
+│   ├── user.proto
+│   ├── article.proto
+│   ├── comment.proto
+│   ├── profile.proto
+│   ├── tag.proto
+│   ├── buf.yaml                      # buf build config
+│   ├── buf.lock
+│   └── gen/pb/                       # Generated Go stubs (committed)
 ├── internal/
 │   ├── domain/                       # Business logic (no external dependencies)
 │   │   ├── models.go                 # Core data models
@@ -19,9 +28,18 @@ realworld-backend-go/
 │   │   ├── comment.go                # CommentController + commentRepo interface
 │   │   └── errors.go                 # Domain error types
 │   └── adapters/
-│       ├── in/webserver/             # Inbound: HTTP
-│       │   ├── server.go             # Gorilla Mux router setup
-│       │   └── handlers.go           # HTTP request/response handling
+│       ├── in/
+│       │   ├── webserver/            # Inbound: HTTP
+│       │   │   ├── server.go         # Gorilla Mux router setup
+│       │   │   └── handlers.go       # HTTP request/response handling
+│       │   └── grpc/                 # Inbound: gRPC
+│       │       ├── server.go         # Registers all service servers + reflection
+│       │       ├── middleware.go     # AuthInterceptor (NoAuth/OptionalAuth/MandatoryAuth)
+│       │       ├── user.go           # UserServer
+│       │       ├── article.go        # ArticleServer
+│       │       ├── profile.go        # ProfileServer
+│       │       ├── comment.go        # CommentServer
+│       │       └── tag.go            # TagServer
 │       └── out/db/                   # Outbound: PostgreSQL
 │           ├── postgres.go           # sqlx-based repository
 │           └── migrations/
@@ -33,9 +51,20 @@ realworld-backend-go/
 │               ├── 006_create_article_favorites.sql
 │               ├── 007_create_comments.sql
 │               └── 008_allow_duplicate_article_titles.sql
+├── test/grpc/                        # gRPC e2e integration tests (//go:build integration)
+│   ├── helpers_test.go               # dial, withToken, genUID, nullableStr helpers
+│   ├── auth_test.go
+│   ├── articles_test.go
+│   ├── comments_test.go
+│   ├── profiles_test.go
+│   ├── tags_test.go
+│   ├── feed_test.go
+│   ├── favorites_test.go
+│   ├── pagination_test.go
+│   └── errors_test.go
 ├── compose.yaml                      # Docker Compose (prod DB)
 ├── compose.test.yaml                 # Docker Compose (test DB)
-├── Makefile                          # make int-tests runner
+├── Makefile                          # make int-tests / make int-tests-grpc
 ├── .env                              # Production environment config
 └── .env_test                         # Test environment config
 ```
@@ -97,6 +126,42 @@ Handles the HTTP protocol layer:
 | GET | `/api/tags` | List all tags (no auth) |
 
 **Response codes:** `200 OK`, `201 Created`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `422 Unprocessable Entity`, `500 Internal Server Error`
+
+### Inbound Adapter — gRPC (`internal/adapters/in/grpc/`)
+
+Runs on a separate port (`GRPC_PORT`) alongside the HTTP server. Both servers are started concurrently from `cmd/server/server.go`; both delegate to the same domain controller instances, so there is no business logic duplication.
+
+**`server.go`** — `NewGrpcServer` registers all five service servers (`UserServiceServer`, `ArticleServiceServer`, `ProfileServiceServer`, `CommentServiceServer`, `TagServiceServer`) and enables gRPC reflection so tools like `grpcurl` can discover the API at runtime.
+
+**`middleware.go`** — `AuthInterceptor` is a unary server interceptor that implements a three-level auth scheme:
+
+| Constant | Behaviour |
+|---|---|
+| `NoAuth` | Token is not read at all (e.g. `RegisterUser`, `LoginUser`, `GetTags`) |
+| `OptionalAuth` | Token is parsed and the user ID is placed in context if valid; the call proceeds regardless (e.g. `GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`) |
+| `MandatoryAuth` | Returns `UNAUTHENTICATED` if the token is absent or invalid |
+
+The per-method requirements are declared as a `map[string]AuthRequirement` in `cmd/server/server.go` and passed to the interceptor at server construction. The interceptor extracts the JWT from the `authorization` metadata key (format: `Token <jwt>`), validates it with the shared JWT secret, parses the `sub` claim as an integer user ID, and stores it in the request context under `UserIDKey`. Handlers read the ID with `ctx.Value(UserIDKey).(int)`; for optional-auth handlers they use the zero value (unauthenticated) if the key is absent.
+
+**Service servers** — each file defines a narrow service interface (local to the package) and a server struct that implements the generated proto service interface:
+
+| File | Server | Domain errors → gRPC codes |
+|---|---|---|
+| `user.go` | `UserServer` | `ValidationError` → `InvalidArgument`, `DuplicateError` → `AlreadyExists`, `CredentialsError` → `Unauthenticated` |
+| `article.go` | `ArticleServer` | `ArticleNotFoundError` → `NotFound`, `ForbiddenError` → `PermissionDenied`, `ValidationError` → `InvalidArgument` |
+| `profile.go` | `ProfileServer` | `ProfileNotFoundError` → `NotFound` |
+| `comment.go` | `CommentServer` | `ArticleNotFoundError` / `CommentNotFoundError` → `NotFound`, `ForbiddenError` → `PermissionDenied`, `ValidationError` → `InvalidArgument` |
+| `tag.go` | `TagServer` | — |
+
+**Proto3 wrapper types** (defined in the `.proto` files, generated into `api/proto/gen/pb/`):
+- `NullableString` — used for `UpdateUser.bio` and `UpdateUser.image` to represent three states: field absent (leave unchanged), `{}` (clear to null), `{ value: "..." }` (set a value). Plain `optional string` cannot represent this because proto3 cannot distinguish absent from empty-string.
+- `TagListValue` — used for `UpdateArticle.tag_list` to distinguish absent (preserve tags) from `{}` (clear all tags) from `{ tags: ["go"] }` (replace tags). Plain `repeated string` cannot represent absent.
+
+**`article.go` helpers** — shared private functions keep the handlers thin:
+- `articleToProto` / `articleListItemToProto` — convert domain `Article` to the single-article and list-item proto shapes respectively.
+- `articleAuthorToProto` — converts a domain `Profile` to `ArticleAuthor`.
+- `articlesResponse` — builds the `ArticlesResponse` (list + total count) from a domain `ArticleList`.
+- `articleErr` — maps `ArticleNotFoundError` / `ForbiddenError` to the correct gRPC status; falls through to `Internal` for unexpected errors.
 
 ### Outbound Adapter — Database (`internal/adapters/out/db/`)
 PostgreSQL persistence via `sqlx`:
@@ -197,7 +262,8 @@ Loaded from `.env` / `.env_test` via `godotenv`:
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `SERVER_PORT` | 8090 | HTTP server port (test: 8091) |
+| `SERVER_PORT` | 8090 | HTTP server port (test: 8097) |
+| `GRPC_PORT` | 8099 | gRPC server port (test: 8098); required, server exits if missing |
 | `JWT_SECRET` | — | HMAC signing key for JWT tokens |
 | `DB_HOST` | localhost | PostgreSQL host |
 | `DB_PORT` | 8095 | PostgreSQL port (test: 8096) |
@@ -215,13 +281,23 @@ Migrations run automatically at app startup via embedded Goose files.
 
 ## Testing
 
-Integration tests are run via `make int-tests`, which:
+### HTTP integration tests (`make int-tests`)
+
 1. Starts the test DB (`compose.test.yaml`)
 2. Polls `pg_isready` until the DB is accepting connections
 3. Builds the binary (`go build ./cmd/server`)
-4. Starts the server with the test env (`./server -env .env_test`)
-5. Runs the hurl API test suite (`../realworld/specs/api/run-api-tests-hurl.sh`)
+4. Starts the server with the test env (`./server -env .env_test`, HTTP port 8097)
+5. Runs the full RealWorld Hurl API test suite against the gothinkster/realworld spec
 6. Truncates the `users` table and stops the test DB container
+
+### gRPC e2e tests (`make int-tests-grpc`)
+
+1. Starts the test DB (`compose.test.yaml`)
+2. Builds the binary and starts the server (HTTP 8097, gRPC 8098)
+3. Runs `go test -tags integration ./test/grpc/` with `GRPC_HOST=localhost:8098`
+4. Kills the server, truncates the DB, and tears down the container
+
+The gRPC test suite lives in `test/grpc/` and uses the `//go:build integration` build tag so it is never compiled by a plain `go test ./...`. Tests use the generated proto client stubs directly — no grpcurl or JSON serialization involved. Each test function is self-contained: it registers its own users and articles, and uses `t.Cleanup` for teardown. The suite covers all RPCs including error cases (`NotFound`, `PermissionDenied`, `Unauthenticated`).
 
 The server accepts a `-env` flag (default `.env`) to select the env file at startup.
 

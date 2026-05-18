@@ -4,11 +4,13 @@
 
 A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com). Users can register, publish articles, follow each other, comment, and favorite posts.
 
-**Stack:** Go · PostgreSQL · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
+**Stack:** Go · gRPC · PostgreSQL · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
 
 ## Key Design Decisions
 
 **Hexagonal Architecture (Ports & Adapters)** — business logic in `internal/domain/` has zero framework dependencies. The HTTP layer and PostgreSQL adapter are fully interchangeable without touching domain code. This makes the codebase easy to test, extend, and reason about.
+
+**Native gRPC alongside HTTP** — the server exposes both a Gorilla Mux HTTP API (spec-compliant with the RealWorld spec) and a native gRPC API, both backed by the same domain layer. See the [gRPC API](#grpc-api) section for the reasoning behind running them as separate servers rather than using grpc-gateway.
 
 **AWS ECS Fargate over EC2** — no servers to manage or patch. Tasks run across two private subnets (one per AZ) behind an ALB for high availability and zero-downtime rolling deploys. Application Auto Scaling adjusts the task count between 2 and 4 based on CPU utilization, keeping costs low under normal load while handling traffic spikes automatically.
 
@@ -25,20 +27,22 @@ A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend A
 The project uses **Hexagonal Architecture** (Ports & Adapters):
 
 - **Domain layer** (`internal/domain/`) — pure Go business logic with no framework dependencies. Each resource (user, profile, article, comment, tag) has its own controller and repository interface.
-- **Inbound adapter** (`internal/adapters/in/webserver/`) — Gorilla Mux HTTP server. Handlers decode requests, call domain services, and encode responses. Authentication is handled by JWT middleware.
+- **HTTP inbound adapter** (`internal/adapters/in/webserver/`) — Gorilla Mux HTTP server. Handlers decode requests, call domain services, and encode responses. Authentication is handled by JWT middleware.
+- **gRPC inbound adapter** (`internal/adapters/in/grpc/`) — native gRPC server backed by proto-generated stubs. A single unary interceptor handles auth (mandatory, optional, or none) per method. Both servers share the same domain controller instances — no business logic duplication.
 - **Outbound adapter** (`internal/adapters/out/db/`) — PostgreSQL persistence via `sqlx`. Goose migrations run automatically on startup.
 
 See [arch.md](arch.md) for a full description of every layer, route, schema, and design decision.
 
 ## CI/CD
 
-Every push to `main` (and any `v*` tag) runs the following GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
+Every push to `main` runs the GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
 
 ### Pipeline stages
 
-1. **Test** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full integration test suite (`make int-tests`). The build and deploy stages are blocked until this passes.
-2. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
-3. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
+1. **HTTP integration tests** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full HTTP API test suite (`make int-tests`).
+2. **gRPC integration tests** — runs the Go e2e test suite in `test/grpc/` against a live server and test database (`make int-tests-grpc`).
+3. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
+4. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
 
 ### Infrastructure
 
@@ -74,7 +78,7 @@ The infrastructure was designed and debugged collaboratively with Claude Code �
 
 ## gRPC API
 
-The server exposes a native gRPC API on port **8099** alongside the existing HTTP API. The gRPC service definitions live in `api/proto/` and the generated Go code is in `api/proto/gen/pb/`. To regenerate after editing a `.proto` file:
+The server exposes a native gRPC API alongside the existing HTTP API. The port is configurable via the `GRPC_PORT` environment variable (production default: **8099**, test environment: **8098**). Service definitions live in `api/proto/` and the generated Go stubs are committed to `api/proto/gen/pb/`. To regenerate after editing a `.proto` file:
 
 ```bash
 make proto
