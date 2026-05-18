@@ -81,12 +81,16 @@ func main() {
 	articleGrpcServer := igrpc.NewArticleServer(articleController)
 	igrpcServer := igrpc.NewGrpcServer(grpcServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
 
-	lis, err := net.Listen("tcp", ":8099")
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		log.Fatal("GRPC_PORT environment variable is required")
+	}
+	lis, err := net.Listen("tcp", ":"+grpcPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	go func() {
-		log.Printf("starting gRPC server on port 8099...")
+		log.Printf("starting gRPC server on port %s...", grpcPort)
 		if err := igrpcServer.Server.Serve(lis); err != nil {
 			log.Fatalf("gRPC server failed: %v", err)
 		}
