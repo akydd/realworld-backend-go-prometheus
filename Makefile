@@ -18,7 +18,6 @@ lint:
 	golangci-lint run ./...
 
 SPECS_DIR ?= ../realworld
-GRPC_TESTS_DIR ?= ../realworld-grpcurl-tests
 
 int-tests:
 	docker compose -f compose.test.yaml up -d
@@ -43,7 +42,7 @@ int-tests-grpc:
 	lsof -ti :8098 -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
 	./server -env .env_test & echo $$! > server.pid
 	sleep 2
-	GRPC_HOST=localhost:8098 $(GRPC_TESTS_DIR)/run.sh; \
+	GRPC_HOST=localhost:8098 go test -tags integration ./test/grpc/; \
 	RESULT=$$?; \
 	kill $$(cat server.pid) 2>/dev/null || true; \
 	rm -f server.pid; \

@@ -802,6 +802,23 @@ func convertListRows(rows []listRow) *domain.ArticleList {
 	return result
 }
 
+// totalArticleCount returns the total number of articles matching the given conditions,
+// used to report an accurate count even when the paginated result is empty.
+func (p *Postgres) totalArticleCount(ctx context.Context, conditions []string, args []any) (int, error) {
+	q := `SELECT COUNT(DISTINCT a.id)
+		FROM articles a
+		JOIN users u ON u.id = a.author_id
+		LEFT JOIN follows f ON f.followee_id = a.author_id AND f.follower_id = $1`
+	if len(conditions) > 0 {
+		q += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	var count int
+	if err := p.db.GetContext(ctx, &count, q, args...); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // ListArticles returns a paginated, optionally filtered list of articles from the global feed.
 func (p *Postgres) ListArticles(ctx context.Context, filter domain.ListArticlesFilter, viewerID int) (*domain.ArticleList, error) {
 	args := []any{viewerID}
@@ -827,6 +844,9 @@ func (p *Postgres) ListArticles(ctx context.Context, filter domain.ListArticlesF
 			`EXISTS (SELECT 1 FROM article_favorites af2 JOIN users u2 ON u2.id = af2.user_id WHERE af2.article_id = a.id AND lower(u2.username) = lower(%s))`, p))
 	}
 
+	// Save args before buildArticleListQuery appends limit/offset.
+	countArgs := append([]any{}, args...)
+
 	query, args := buildArticleListQuery(conditions, args, filter.Limit, filter.Offset)
 
 	var rows []listRow
@@ -834,13 +854,25 @@ func (p *Postgres) ListArticles(ctx context.Context, filter domain.ListArticlesF
 		return nil, err
 	}
 
-	return convertListRows(rows), nil
+	result := convertListRows(rows)
+	if len(rows) == 0 {
+		total, err := p.totalArticleCount(ctx, conditions, countArgs)
+		if err != nil {
+			return nil, err
+		}
+		result.TotalCount = total
+	}
+	return result, nil
 }
 
 // FeedArticles returns a paginated list of articles from authors that viewerID follows.
 func (p *Postgres) FeedArticles(ctx context.Context, filter domain.ArticleFeedFilter, viewerID int) (*domain.ArticleList, error) {
 	args := []any{viewerID}
 	conditions := []string{"f.follower_id IS NOT NULL"}
+
+	// Save args before buildArticleListQuery appends limit/offset.
+	countArgs := append([]any{}, args...)
+
 	query, args := buildArticleListQuery(conditions, args, filter.Limit, filter.Offset)
 
 	var rows []listRow
@@ -848,7 +880,15 @@ func (p *Postgres) FeedArticles(ctx context.Context, filter domain.ArticleFeedFi
 		return nil, err
 	}
 
-	return convertListRows(rows), nil
+	result := convertListRows(rows)
+	if len(rows) == 0 {
+		total, err := p.totalArticleCount(ctx, conditions, countArgs)
+		if err != nil {
+			return nil, err
+		}
+		result.TotalCount = total
+	}
+	return result, nil
 }
 
 // DeleteArticle removes the article identified by slug if callerID is its author.
