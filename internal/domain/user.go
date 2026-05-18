@@ -180,6 +180,9 @@ func validateUpdateUser(u *UpdateUser) error {
 	if u.Password != nil && *u.Password == "" {
 		return NewValidationError("password", blankFieldErrMsg)
 	}
+	if u.Password != nil && len(*u.Password) < 8 {
+		return NewValidationError("password", "is too short (minimum is 8 characters)")
+	}
 	return nil
 }
 
