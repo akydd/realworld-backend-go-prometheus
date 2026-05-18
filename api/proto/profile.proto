@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option go_package = "realworld-backend-go/api/proto/gen/pb";
+
+service ProfileService {
+    rpc GetProfile(GetProfileRequest) returns (ProfileResponse);
+    rpc FollowUser(FollowUserRequest) returns (ProfileResponse);
+    rpc UnfollowUser(UnfollowUserRequest) returns (ProfileResponse);
+}
+
+message ProfileResponseInner {
+    string username = 1;
+    optional string bio = 2;
+    optional string image = 3;
+    bool following = 4;
+}
+
+message ProfileResponse {
+    ProfileResponseInner profile = 1;
+}
+
+message GetProfileRequest {
+    string username = 1;
+}
+
+message FollowUserRequest {
+    string username = 1;
+}
+
+message UnfollowUserRequest {
+    string username = 1;
+}

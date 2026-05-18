@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option go_package = "realworld-backend-go/api/proto/gen/pb";
+
+import "google/protobuf/empty.proto";
+
+service TagService {
+    rpc GetTags(google.protobuf.Empty) returns (TagsResponse);
+}
+
+message TagsResponse {
+    repeated string tags = 1;
+}

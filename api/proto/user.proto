@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+option go_package = "realworld-backend-go/api/proto/gen/pb";
+
+import "google/protobuf/empty.proto";
+
+service UserService {
+    rpc RegisterUser(RegisterUserRequest) returns (UserResponse);
+    rpc LoginUser(LoginUserRequest) returns (UserResponse);
+    rpc GetUser(google.protobuf.Empty) returns (UserResponse);
+    rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
+}
+
+message RegisterUserRequestInner {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+}
+
+message RegisterUserRequest {
+    RegisterUserRequestInner user = 1;
+}
+
+message UserResponseInner {
+    string email = 1;
+    string token = 2;
+    string username = 3;
+    optional string bio = 4;
+    optional string image = 5;
+}
+
+message UserResponse {
+    UserResponseInner user = 1;
+}
+
+message LoginUserRequestInner {
+    string email = 1;
+    string password = 2;
+}
+
+message LoginUserRequest {
+    LoginUserRequestInner user = 1;
+}
+
+message NullableString {
+    string value = 1;
+}
+
+message UpdateUserRequestInner {
+    optional string email = 1;
+    optional NullableString bio = 2;
+    optional NullableString image = 3;
+    optional string username = 4;
+    optional string password = 5;
+}
+
+message UpdateUserRequest {
+    UpdateUserRequestInner user = 1;
+}
