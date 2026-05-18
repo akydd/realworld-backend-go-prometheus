@@ -133,6 +133,48 @@ This will:
 3. Run the full RealWorld Hurl API test suite
 4. Tear down the server and test database
 
+## Running the gRPC integration tests
+
+**Prerequisites:** Docker, Go 1.21+
+
+```bash
+make int-tests-grpc
+```
+
+This will:
+1. Start a dedicated test database on port 8096
+2. Build and start the server against the test environment (ports 8097/8098)
+3. Run the full gRPC test suite in `test/grpc/`
+4. Truncate the test database and tear it down
+
+The suite covers all gRPC endpoints across nine test files:
+
+| File | What it tests |
+|---|---|
+| `auth_test.go` | Register, login, get user, update bio/image/username/email, nullable field semantics |
+| `articles_test.go` | Create, list (all/by-author/by-tag), get, update, tag list patch, delete |
+| `comments_test.go` | Create, list (authed/unauthed), delete, selective deletion |
+| `profiles_test.go` | Get profile (authed/unauthed), follow, unfollow, persist check |
+| `tags_test.go` | Create article with tags, verify tags appear in `GetTags` |
+| `feed_test.go` | Empty feed, follow author, feed count/author, pagination |
+| `favorites_test.go` | Favorite, get as favoriter/non-favoriter, list by favorited, unfavorite |
+| `pagination_test.go` | Limit/offset combinations, empty page total count, most-recent-first order |
+| `errors_test.go` | Missing fields, duplicates, wrong password, `NotFound`, `PermissionDenied`, `Unauthenticated` |
+
+### Why Go instead of shell scripts or Bruno
+
+The gRPC test suite started as shell scripts using `grpcurl` piped into `jq`. This turned out to be the wrong tool for the job for several reasons:
+
+**Proto3 zero-value omission.** gRPC JSON encoding omits fields set to their zero value — `false` booleans and `0` integers simply don't appear in the JSON output. Every boolean or counter assertion required a `// false` or `// 0` jq fallback to avoid silent false-positives, and any assertion that didn't have one would incorrectly pass.
+
+**Shell fragility.** Two separate bugs surfaced within the first test run:
+- `UID` is a read-only variable in bash and zsh; using it as a test identifier caused every test to fail immediately with `UID: readonly variable`.
+- `${2:-{}}` (a common pattern for defaulting a missing argument to `{}`) silently appends a spurious `}` to the argument when it is set, because `}` closes the parameter expansion before the literal `}` is consumed. This made every JSON request body malformed and every `grpcurl` call fail silently.
+
+**Bruno** requires the desktop application for the full authoring experience and has limited CI integration. Its collection format is designed around HTTP; gRPC support is present but less complete.
+
+**Go** solves all of this cleanly. The generated proto client stubs use native Go types, so zero values (`false`, `0`) are just zero values — no JSON serialization workarounds. `t.Fatalf`, `t.Cleanup`, and build tags (`//go:build integration`) are standard. The compiler catches type mismatches against the proto contract before the test even runs. The tests live in the same repository and run with `go test`, requiring no external binaries beyond the running server.
+
 ## Running the linter
 
 ```bash
