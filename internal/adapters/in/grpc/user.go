@@ -2,14 +2,9 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
 
-	"errors"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -39,14 +34,7 @@ func (u *UserServer) RegisterUser(ctx context.Context, in *pb.RegisterUserReques
 
 	user, err := u.userService.RegisterUser(ctx, d)
 	if err != nil {
-		var validationErr *domain.ValidationError
-		var dupErr *domain.DuplicateError
-		if errors.As(err, &dupErr) {
-			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("%s %s", dupErr.Field, dupErr.Msg))
-		} else if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 
 	return &pb.UserResponse{
@@ -68,14 +56,7 @@ func (u *UserServer) LoginUser(ctx context.Context, in *pb.LoginUserRequest) (*p
 
 	user, err := u.userService.LoginUser(ctx, d)
 	if err != nil {
-		var validationErr *domain.ValidationError
-		var credErr *domain.CredentialsError
-		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		} else if errors.As(err, &credErr) {
-			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 
 	return &pb.UserResponse{
@@ -94,11 +75,7 @@ func (u *UserServer) GetUser(ctx context.Context, in *emptypb.Empty) (*pb.UserRe
 
 	user, err := u.userService.GetUser(ctx, userID)
 	if err != nil {
-		var credErr *domain.CredentialsError
-		if errors.As(err, &credErr) {
-			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 
 	return &pb.UserResponse{
@@ -140,17 +117,7 @@ func (u *UserServer) UpdateUser(ctx context.Context, in *pb.UpdateUserRequest) (
 
 	user, err := u.userService.UpdateUser(ctx, userID, d)
 	if err != nil {
-		var validationErr *domain.ValidationError
-		var credErr *domain.CredentialsError
-		var dupErr *domain.DuplicateError
-		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		} else if errors.As(err, &credErr) {
-			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
-		} else if errors.As(err, &dupErr) {
-			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("%s %s", dupErr.Field, dupErr.Msg))
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 
 	return &pb.UserResponse{

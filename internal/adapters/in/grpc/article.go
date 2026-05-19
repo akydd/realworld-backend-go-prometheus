@@ -2,13 +2,9 @@ package grpc
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -73,17 +69,6 @@ func articleListItemToProto(a *domain.Article) *pb.ArticleListItem {
 	}
 }
 
-func articleErr(err error) error {
-	var notFoundErr *domain.ArticleNotFoundError
-	var forbiddenErr *domain.ForbiddenError
-	if errors.As(err, &notFoundErr) {
-		return status.Error(codes.NotFound, "article not found")
-	} else if errors.As(err, &forbiddenErr) {
-		return status.Error(codes.PermissionDenied, "forbidden")
-	}
-	return status.Error(codes.Internal, err.Error())
-}
-
 func articlesResponse(list *domain.ArticleList) *pb.ArticlesResponse {
 	items := make([]*pb.ArticleListItem, 0, len(list.Articles))
 	for _, a := range list.Articles {
@@ -107,14 +92,7 @@ func (s *ArticleServer) CreateArticle(ctx context.Context, in *pb.CreateArticleR
 
 	article, err := s.articleService.CreateArticle(ctx, authorID, d)
 	if err != nil {
-		var validationErr *domain.ValidationError
-		var dupErr *domain.DuplicateError
-		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		} else if errors.As(err, &dupErr) {
-			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("%s %s", dupErr.Field, dupErr.Msg))
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 
 	return articleToProto(article), nil
@@ -125,7 +103,7 @@ func (s *ArticleServer) GetArticleBySlug(ctx context.Context, in *pb.GetArticleB
 
 	article, err := s.articleService.GetArticleBySlug(ctx, in.GetSlug(), viewerID)
 	if err != nil {
-		return nil, articleErr(err)
+		return nil, domainErr(err)
 	}
 	return articleToProto(article), nil
 }
@@ -146,11 +124,7 @@ func (s *ArticleServer) UpdateArticle(ctx context.Context, in *pb.UpdateArticleR
 
 	article, err := s.articleService.UpdateArticle(ctx, callerID, in.GetSlug(), u)
 	if err != nil {
-		var validationErr *domain.ValidationError
-		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil, articleErr(err)
+		return nil, domainErr(err)
 	}
 	return articleToProto(article), nil
 }
@@ -160,7 +134,7 @@ func (s *ArticleServer) FavoriteArticle(ctx context.Context, in *pb.FavoriteArti
 
 	article, err := s.articleService.FavoriteArticle(ctx, userID, in.GetSlug())
 	if err != nil {
-		return nil, articleErr(err)
+		return nil, domainErr(err)
 	}
 	return articleToProto(article), nil
 }
@@ -170,7 +144,7 @@ func (s *ArticleServer) UnfavoriteArticle(ctx context.Context, in *pb.Unfavorite
 
 	article, err := s.articleService.UnfavoriteArticle(ctx, userID, in.GetSlug())
 	if err != nil {
-		return nil, articleErr(err)
+		return nil, domainErr(err)
 	}
 	return articleToProto(article), nil
 }
@@ -179,7 +153,7 @@ func (s *ArticleServer) DeleteArticle(ctx context.Context, in *pb.DeleteArticleR
 	callerID := ctx.Value(UserIDKey).(int)
 
 	if err := s.articleService.DeleteArticle(ctx, callerID, in.GetSlug()); err != nil {
-		return nil, articleErr(err)
+		return nil, domainErr(err)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -202,7 +176,7 @@ func (s *ArticleServer) ListArticles(ctx context.Context, in *pb.ListArticlesReq
 
 	list, err := s.articleService.ListArticles(ctx, filter, viewerID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 	return articlesResponse(list), nil
 }
@@ -220,7 +194,7 @@ func (s *ArticleServer) FeedArticles(ctx context.Context, in *pb.FeedArticlesReq
 
 	list, err := s.articleService.FeedArticles(ctx, filter, userID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, domainErr(err)
 	}
 	return articlesResponse(list), nil
 }
