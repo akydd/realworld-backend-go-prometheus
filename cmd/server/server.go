@@ -14,6 +14,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
 )
 
 func main() {
@@ -79,7 +80,8 @@ func main() {
 	profileGrpcServer := igrpc.NewProfileServer(profileController)
 	commentGrpcServer := igrpc.NewCommentServer(commentController)
 	articleGrpcServer := igrpc.NewArticleServer(articleController)
-	igrpcServer := igrpc.NewGrpcServer(grpcServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
+	healthServer := health.NewServer()
+	igrpcServer := igrpc.NewGrpcServer(grpcServer, healthServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
 
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {
