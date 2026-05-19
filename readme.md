@@ -98,6 +98,22 @@ Running both servers independently avoids all of this. The existing HTTP server 
 
 Authenticated RPCs expect an `authorization` metadata key with value `Token <jwt>`. Methods that require authentication (`GetUser`, `UpdateUser`, `FollowUser`, `UnfollowUser`, `CreateArticle`, `UpdateArticle`, `FavoriteArticle`, `UnfavoriteArticle`, `DeleteArticle`, `FeedArticles`, `CreateComment`, `DeleteComment`) return `UNAUTHENTICATED` if the token is absent or invalid. Methods with optional auth (`GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`) proceed unauthenticated if no token is supplied. `RegisterUser`, `LoginUser`, and `GetTags` require no token.
 
+**Structured errors**
+
+Every error returned by the gRPC server carries a standard [`google.rpc.Status`](https://github.com/googleapis/googleapis/blob/master/google/rpc/status.proto) with one or more typed detail messages attached, so clients can inspect structured fields rather than parsing the string message:
+
+| Domain error | gRPC code | Detail type | Key fields |
+|---|---|---|---|
+| Validation failure | `INVALID_ARGUMENT` | `google.rpc.BadRequest` | `field_violations[].field`, `field_violations[].description` |
+| Duplicate field | `ALREADY_EXISTS` | `google.rpc.BadRequest` | `field_violations[].field`, `field_violations[].description` |
+| Bad credentials | `UNAUTHENTICATED` | `google.rpc.ErrorInfo` | `reason: "INVALID_CREDENTIALS"`, `domain: "realworld"` |
+| Profile not found | `NOT_FOUND` | `google.rpc.ResourceInfo` | `resource_type: "profile"` |
+| Article not found | `NOT_FOUND` | `google.rpc.ResourceInfo` | `resource_type: "article"` |
+| Comment not found | `NOT_FOUND` | `google.rpc.ResourceInfo` | `resource_type: "comment"` |
+| Forbidden | `PERMISSION_DENIED` | `google.rpc.ErrorInfo` | `reason: "PERMISSION_DENIED"`, `domain: "realworld"` |
+
+The mapping lives in `internal/adapters/in/grpc/errors.go`. All four handler files (`user.go`, `article.go`, `profile.go`, `comment.go`) call the single `domainErr` helper instead of building status errors inline.
+
 **Proto3 limitations vs the HTTP API**
 
 - **`UpdateUser` — bio and image use a `NullableString` wrapper.** `optional string` cannot represent the three states needed (absent = leave unchanged, null = clear, value = set). Both fields use `optional NullableString` instead: omit the field to leave it unchanged, send `bio: {}` to clear it to null, or send `bio: { value: "hello" }` to set a value.
