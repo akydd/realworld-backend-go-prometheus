@@ -13,5 +13,17 @@ services:
     ports:
       - 8095:5432
 
+  redis:
+    image: redis:7-alpine  # Redis 5.0+ is required for Streams
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass password # no special setup needed for simple messaging
+
+
 volumes:
   app-data:
+  redis-data:

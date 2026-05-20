@@ -2,9 +2,11 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
 
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -20,13 +22,21 @@ type articleService interface {
 	FeedArticles(ctx context.Context, filter domain.ArticleFeedFilter, viewerID int) (*domain.ArticleList, error)
 }
 
-type ArticleServer struct {
-	pb.UnimplementedArticleServiceServer
-	articleService articleService
+type subscriptionService interface {
+	ArticleSubscribe(ctx context.Context) <-chan domain.Article
 }
 
-func NewArticleServer(service articleService) *ArticleServer {
-	return &ArticleServer{articleService: service}
+type ArticleServer struct {
+	pb.UnimplementedArticleServiceServer
+	articleService      articleService
+	subscriptionService subscriptionService
+}
+
+func NewArticleServer(service articleService, sub subscriptionService) *ArticleServer {
+	return &ArticleServer{
+		articleService:      service,
+		subscriptionService: sub,
+	}
 }
 
 func articleAuthorToProto(p domain.Profile) *pb.ArticleAuthor {
@@ -197,4 +207,38 @@ func (s *ArticleServer) FeedArticles(ctx context.Context, in *pb.FeedArticlesReq
 		return nil, domainErr(err)
 	}
 	return articlesResponse(list), nil
+}
+
+func (s *ArticleServer) LiveArticleFeed(in *emptypb.Empty, stream grpc.ServerStreamingServer[pb.ArticleListItem]) error {
+	sub := s.subscriptionService.ArticleSubscribe(stream.Context())
+
+	for {
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case a := <-sub:
+			createdAt := timestamppb.New(a.CreatedAt)
+			updatedAt := timestamppb.New(a.UpdatedAt)
+
+			err := stream.Send(&pb.ArticleListItem{
+				Slug:           a.Slug,
+				Title:          a.Title,
+				Description:    a.Description,
+				TagList:        a.TagList,
+				CreatedAt:      createdAt,
+				UpdatedAt:      updatedAt,
+				Favorited:      a.Favorited,
+				FavoritesCount: int32(a.FavoritesCount),
+				Author: &pb.ArticleAuthor{
+					Username:  a.Author.Username,
+					Image:     a.Author.Image,
+					Bio:       a.Author.Bio,
+					Following: a.Author.Following,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("could not stream article slug %s: %w", a.Slug, err)
+			}
+		}
+	}
 }

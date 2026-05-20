@@ -62,14 +62,23 @@ type articleRepo interface {
 	FeedArticles(ctx context.Context, filter ArticleFeedFilter, viewerID int) (*ArticleList, error)
 }
 
+type publisher interface {
+	PublishArticle(ctx context.Context, article *Article) error
+	PublishComment(ctx context.Context, article *Comment) error
+}
+
 // ArticleController implements the article management use-cases of the domain.
 type ArticleController struct {
 	repo articleRepo
+	pub  publisher
 }
 
 // NewArticleController creates an ArticleController backed by the given repository.
-func NewArticleController(r articleRepo) *ArticleController {
-	return &ArticleController{repo: r}
+func NewArticleController(r articleRepo, p publisher) *ArticleController {
+	return &ArticleController{
+		repo: r,
+		pub:  p,
+	}
 }
 
 // CreateArticle validates the request, deduplicates tags, generates a slug from the title,
@@ -83,7 +92,14 @@ func (c *ArticleController) CreateArticle(ctx context.Context, authorID int, a *
 
 	slug := GenerateSlug(a.Title)
 
-	return c.repo.InsertArticle(ctx, authorID, slug, a)
+	article, err := c.repo.InsertArticle(ctx, authorID, slug, a)
+	if err != nil {
+		return nil, err
+	}
+
+	c.pub.PublishArticle(ctx, article)
+
+	return article, nil
 }
 
 // GetArticleBySlug retrieves a single article by its slug, enriching it with viewer-specific data.
