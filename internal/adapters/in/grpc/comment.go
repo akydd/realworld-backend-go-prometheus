@@ -2,9 +2,11 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"realworld-backend-go/api/proto/gen/pb"
 	"realworld-backend-go/internal/domain"
 
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -15,13 +17,18 @@ type commentService interface {
 	DeleteComment(ctx context.Context, callerID int, articleSlug string, commentID int) error
 }
 
+type commentSubscriptionService interface {
+	CommentSubscribe(ctx context.Context, slug string) <-chan domain.Comment
+}
+
 type CommentServer struct {
 	pb.UnimplementedCommentServiceServer
 	commentService commentService
+	sub            commentSubscriptionService
 }
 
-func NewCommentServer(service commentService) *CommentServer {
-	return &CommentServer{commentService: service}
+func NewCommentServer(service commentService, sub commentSubscriptionService) *CommentServer {
+	return &CommentServer{commentService: service, sub: sub}
 }
 
 func commentToProto(c *domain.Comment) *pb.CommentResponseInner {
@@ -74,4 +81,31 @@ func (s *CommentServer) DeleteComment(ctx context.Context, in *pb.DeleteCommentR
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s *CommentServer) LiveCommentFeed(in *pb.LiveCommentFeedRequest, stream grpc.ServerStreamingServer[pb.CommentResponseInner]) error {
+	sub := s.sub.CommentSubscribe(stream.Context(), in.GetSlug())
+
+	for {
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case c := <-sub:
+			err := stream.Send(&pb.CommentResponseInner{
+				Id:        int64(c.ID),
+				CreatedAt: timestamppb.New(c.CreatedAt),
+				UpdatedAt: timestamppb.New(c.UpdatedAt),
+				Body:      c.Body,
+				Author: &pb.CommentAuthor{
+					Username:  c.Author.Username,
+					Bio:       c.Author.Bio,
+					Image:     c.Author.Image,
+					Following: c.Author.Following,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("could not stream comment id %d: %w", c.ID, err)
+			}
+		}
+	}
 }

@@ -20,9 +20,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CommentService_CreateComment_FullMethodName = "/CommentService/CreateComment"
-	CommentService_GetComments_FullMethodName   = "/CommentService/GetComments"
-	CommentService_DeleteComment_FullMethodName = "/CommentService/DeleteComment"
+	CommentService_CreateComment_FullMethodName   = "/CommentService/CreateComment"
+	CommentService_GetComments_FullMethodName     = "/CommentService/GetComments"
+	CommentService_DeleteComment_FullMethodName   = "/CommentService/DeleteComment"
+	CommentService_LiveCommentFeed_FullMethodName = "/CommentService/LiveCommentFeed"
 )
 
 // CommentServiceClient is the client API for CommentService service.
@@ -32,6 +33,7 @@ type CommentServiceClient interface {
 	CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CommentResponse, error)
 	GetComments(ctx context.Context, in *GetCommentsRequest, opts ...grpc.CallOption) (*CommentsResponse, error)
 	DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	LiveCommentFeed(ctx context.Context, in *LiveCommentFeedRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommentResponseInner], error)
 }
 
 type commentServiceClient struct {
@@ -72,6 +74,25 @@ func (c *commentServiceClient) DeleteComment(ctx context.Context, in *DeleteComm
 	return out, nil
 }
 
+func (c *commentServiceClient) LiveCommentFeed(ctx context.Context, in *LiveCommentFeedRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommentResponseInner], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &CommentService_ServiceDesc.Streams[0], CommentService_LiveCommentFeed_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[LiveCommentFeedRequest, CommentResponseInner]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CommentService_LiveCommentFeedClient = grpc.ServerStreamingClient[CommentResponseInner]
+
 // CommentServiceServer is the server API for CommentService service.
 // All implementations must embed UnimplementedCommentServiceServer
 // for forward compatibility.
@@ -79,6 +100,7 @@ type CommentServiceServer interface {
 	CreateComment(context.Context, *CreateCommentRequest) (*CommentResponse, error)
 	GetComments(context.Context, *GetCommentsRequest) (*CommentsResponse, error)
 	DeleteComment(context.Context, *DeleteCommentRequest) (*emptypb.Empty, error)
+	LiveCommentFeed(*LiveCommentFeedRequest, grpc.ServerStreamingServer[CommentResponseInner]) error
 	mustEmbedUnimplementedCommentServiceServer()
 }
 
@@ -97,6 +119,9 @@ func (UnimplementedCommentServiceServer) GetComments(context.Context, *GetCommen
 }
 func (UnimplementedCommentServiceServer) DeleteComment(context.Context, *DeleteCommentRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteComment not implemented")
+}
+func (UnimplementedCommentServiceServer) LiveCommentFeed(*LiveCommentFeedRequest, grpc.ServerStreamingServer[CommentResponseInner]) error {
+	return status.Error(codes.Unimplemented, "method LiveCommentFeed not implemented")
 }
 func (UnimplementedCommentServiceServer) mustEmbedUnimplementedCommentServiceServer() {}
 func (UnimplementedCommentServiceServer) testEmbeddedByValue()                        {}
@@ -173,6 +198,17 @@ func _CommentService_DeleteComment_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CommentService_LiveCommentFeed_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LiveCommentFeedRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(CommentServiceServer).LiveCommentFeed(m, &grpc.GenericServerStream[LiveCommentFeedRequest, CommentResponseInner]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CommentService_LiveCommentFeedServer = grpc.ServerStreamingServer[CommentResponseInner]
+
 // CommentService_ServiceDesc is the grpc.ServiceDesc for CommentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -193,6 +229,12 @@ var CommentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CommentService_DeleteComment_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "LiveCommentFeed",
+			Handler:       _CommentService_LiveCommentFeed_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "comment.proto",
 }

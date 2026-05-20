@@ -62,19 +62,18 @@ type articleRepo interface {
 	FeedArticles(ctx context.Context, filter ArticleFeedFilter, viewerID int) (*ArticleList, error)
 }
 
-type publisher interface {
+type articlePublisher interface {
 	PublishArticle(ctx context.Context, article *Article) error
-	PublishComment(ctx context.Context, article *Comment) error
 }
 
 // ArticleController implements the article management use-cases of the domain.
 type ArticleController struct {
 	repo articleRepo
-	pub  publisher
+	pub  articlePublisher
 }
 
 // NewArticleController creates an ArticleController backed by the given repository.
-func NewArticleController(r articleRepo, p publisher) *ArticleController {
+func NewArticleController(r articleRepo, p articlePublisher) *ArticleController {
 	return &ArticleController{
 		repo: r,
 		pub:  p,
@@ -97,7 +96,7 @@ func (c *ArticleController) CreateArticle(ctx context.Context, authorID int, a *
 		return nil, err
 	}
 
-	c.pub.PublishArticle(ctx, article)
+	_ = c.pub.PublishArticle(ctx, article)
 
 	return article, nil
 }

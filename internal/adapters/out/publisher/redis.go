@@ -67,27 +67,20 @@ func New(c *RedisConfig) (*Client, error) {
 	}, nil
 }
 
-type articleAuthor struct {
-	Username  string  `json:"username"`
-	Bio       *string `json:"bio"`
-	Image     *string `json:"image"`
-	Following bool    `json:"following"`
-}
-
 type article struct {
-	Slug           string        `json:"slug"`
-	Title          string        `json:"title"`
-	Description    string        `json:"description"`
-	TagList        []string      `json:"tagList"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	UpdatedAt      time.Time     `json:"updatedAt"`
-	Favorited      bool          `json:"favorited"`
-	FavoritesCount int           `json:"favoritesCount"`
-	Author         articleAuthor `json:"author"`
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	TagList        []string  `json:"tagList"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Favorited      bool      `json:"favorited"`
+	FavoritesCount int       `json:"favoritesCount"`
+	Author         author    `json:"author"`
 }
 
 func marshalArticle(a *domain.Article) (string, error) {
-	author := articleAuthor(a.Author)
+	author := author(a.Author)
 
 	art := &article{
 		Slug:           a.Slug,
@@ -144,8 +137,78 @@ func (c *Client) PublishArticle(ctx context.Context, a *domain.Article) error {
 	return c.redisClient.Publish(ctx, c.articleChannelName, jsonString).Err()
 }
 
-func (c *Client) PublishComment(ctx context.Context, comment *domain.Comment) error {
-	return c.redisClient.Publish(ctx, c.commentChannelName, "").Err()
+type author struct {
+	Username  string  `json:"username"`
+	Bio       *string `json:"bio"`
+	Image     *string `json:"image"`
+	Following bool    `json:"following"`
+}
+
+type comment struct {
+	ID        int       `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Body      string    `json:"body"`
+	Author    author    `json:"author"`
+}
+
+func marshalComment(c *domain.Comment) (string, error) {
+	cmt := &comment{
+		ID:        c.ID,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+		Body:      c.Body,
+		Author:    author(c.Author),
+	}
+	jsonData, err := json.Marshal(cmt)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+func unmarshalComment(msg *redis.Message) (*domain.Comment, error) {
+	var c comment
+	if err := json.Unmarshal([]byte(msg.Payload), &c); err != nil {
+		return nil, err
+	}
+	return &domain.Comment{
+		ID:        c.ID,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+		Body:      c.Body,
+		Author: domain.Profile{
+			Username:  c.Author.Username,
+			Bio:       c.Author.Bio,
+			Image:     c.Author.Image,
+			Following: c.Author.Following,
+		},
+	}, nil
+}
+
+func (c *Client) PublishComment(ctx context.Context, slug string, cmt *domain.Comment) error {
+	jsonString, err := marshalComment(cmt)
+	if err != nil {
+		return err
+	}
+	return c.redisClient.Publish(ctx, c.commentChannelName+":"+slug, jsonString).Err()
+}
+
+func (c *Client) CommentSubscribe(ctx context.Context, slug string) <-chan domain.Comment {
+	j := c.redisClient.Subscribe(ctx, c.commentChannelName+":"+slug)
+	in := j.Channel()
+	out := make(chan domain.Comment)
+	go func() {
+		defer close(out)
+		for msg := range in {
+			cmt, err := unmarshalComment(msg)
+			if err != nil {
+				continue
+			}
+			out <- *cmt
+		}
+	}()
+	return out
 }
 
 func (c *Client) ArticleSubscribe(ctx context.Context) <-chan domain.Article {

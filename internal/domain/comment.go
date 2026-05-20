@@ -8,22 +8,32 @@ type commentRepo interface {
 	DeleteComment(ctx context.Context, callerID int, articleSlug string, commentID int) error
 }
 
+type commentPublisher interface {
+	PublishComment(ctx context.Context, slug string, comment *Comment) error
+}
+
 // CommentController implements the comment management use-cases of the domain.
 type CommentController struct {
 	repo commentRepo
+	pub  commentPublisher
 }
 
-// NewCommentController creates a CommentController backed by the given repository.
-func NewCommentController(r commentRepo) *CommentController {
-	return &CommentController{repo: r}
+// NewCommentController creates a CommentController backed by the given repository and publisher.
+func NewCommentController(r commentRepo, p commentPublisher) *CommentController {
+	return &CommentController{repo: r, pub: p}
 }
 
-// CreateComment validates the comment body and persists a new comment on the specified article.
+// CreateComment validates the comment body, persists it, and publishes it to subscribers.
 func (c *CommentController) CreateComment(ctx context.Context, authorID int, articleSlug string, comment *CreateComment) (*Comment, error) {
 	if comment.Body == "" {
 		return nil, NewValidationError("body", blankFieldErrMsg)
 	}
-	return c.repo.InsertComment(ctx, authorID, articleSlug, comment)
+	result, err := c.repo.InsertComment(ctx, authorID, articleSlug, comment)
+	if err != nil {
+		return nil, err
+	}
+	_ = c.pub.PublishComment(ctx, articleSlug, result)
+	return result, nil
 }
 
 // GetComments retrieves all comments for the article identified by articleSlug.
