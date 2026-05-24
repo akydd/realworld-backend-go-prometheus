@@ -20,22 +20,17 @@ type articleService interface {
 	DeleteArticle(ctx context.Context, callerID int, slug string) error
 	ListArticles(ctx context.Context, filter domain.ListArticlesFilter, viewerID int) (*domain.ArticleList, error)
 	FeedArticles(ctx context.Context, filter domain.ArticleFeedFilter, viewerID int) (*domain.ArticleList, error)
-}
-
-type subscriptionService interface {
-	ArticleSubscribe(ctx context.Context) <-chan domain.Article
+	ArticleSubscribe(ctx context.Context, viewerID int) (<-chan domain.Article, error)
 }
 
 type ArticleServer struct {
 	pb.UnimplementedArticleServiceServer
-	articleService      articleService
-	subscriptionService subscriptionService
+	articleService articleService
 }
 
-func NewArticleServer(service articleService, sub subscriptionService) *ArticleServer {
+func NewArticleServer(service articleService) *ArticleServer {
 	return &ArticleServer{
-		articleService:      service,
-		subscriptionService: sub,
+		articleService: service,
 	}
 }
 
@@ -210,13 +205,20 @@ func (s *ArticleServer) FeedArticles(ctx context.Context, in *pb.FeedArticlesReq
 }
 
 func (s *ArticleServer) LiveArticleFeed(in *emptypb.Empty, stream grpc.ServerStreamingServer[pb.ArticleListItem]) error {
-	sub := s.subscriptionService.ArticleSubscribe(stream.Context())
+	userID := stream.Context().Value(UserIDKey).(int)
+	sub, err := s.articleService.ArticleSubscribe(stream.Context(), userID)
+	if err != nil {
+		return domainErr(err)
+	}
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
-		case a := <-sub:
+		case a, ok := <-sub:
+			if !ok {
+				return nil
+			}
 			createdAt := timestamppb.New(a.CreatedAt)
 			updatedAt := timestamppb.New(a.UpdatedAt)
 

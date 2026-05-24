@@ -96,7 +96,9 @@ Running both servers independently avoids all of this. The existing HTTP server 
 
 **Authentication**
 
-Authenticated RPCs expect an `authorization` metadata key with value `Token <jwt>`. Methods that require authentication (`GetUser`, `UpdateUser`, `FollowUser`, `UnfollowUser`, `CreateArticle`, `UpdateArticle`, `FavoriteArticle`, `UnfavoriteArticle`, `DeleteArticle`, `FeedArticles`, `CreateComment`, `DeleteComment`) return `UNAUTHENTICATED` if the token is absent or invalid. Methods with optional auth (`GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`) proceed unauthenticated if no token is supplied. `RegisterUser`, `LoginUser`, and `GetTags` require no token.
+Authenticated RPCs expect an `authorization` metadata key with value `Token <jwt>`. Methods that require authentication (`GetUser`, `UpdateUser`, `FollowUser`, `UnfollowUser`, `CreateArticle`, `UpdateArticle`, `FavoriteArticle`, `UnfavoriteArticle`, `DeleteArticle`, `FeedArticles`, `CreateComment`, `DeleteComment`, `LiveArticleFeed`) return `UNAUTHENTICATED` if the token is absent or invalid. Methods with optional auth (`GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`, `LiveCommentFeed`) proceed unauthenticated if no token is supplied. `RegisterUser`, `LoginUser`, and `GetTags` require no token.
+
+Unary and server-streaming RPCs are authenticated by separate interceptors. The unary `AuthInterceptor` handles all request/response RPCs. The `StreamAuthInterceptor` handles the two streaming RPCs (`LiveArticleFeed`, `LiveCommentFeed`) using the same three-level scheme — it wraps the `ServerStream` to propagate the enriched context (with `UserIDKey` set) to the handler.
 
 **Structured errors**
 
@@ -167,7 +169,7 @@ This will:
 3. Run the full gRPC test suite in `test/grpc/`
 4. Truncate the test database and tear it down
 
-The suite covers all gRPC endpoints across nine test files:
+The suite covers all gRPC endpoints across ten test files:
 
 | File | What it tests |
 |---|---|
@@ -180,6 +182,7 @@ The suite covers all gRPC endpoints across nine test files:
 | `favorites_test.go` | Favorite, get as favoriter/non-favoriter, list by favorited, unfavorite |
 | `pagination_test.go` | Limit/offset combinations, empty page total count, most-recent-first order |
 | `errors_test.go` | Missing fields, duplicates, wrong password, `NotFound`, `PermissionDenied`, `Unauthenticated` |
+| `streaming_test.go` | `LiveArticleFeed` (auth required, filters to followed authors), `LiveCommentFeed` (auth optional, per-slug isolation) |
 
 ### Why Go instead of shell scripts or Bruno
 

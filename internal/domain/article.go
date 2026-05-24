@@ -60,23 +60,30 @@ type articleRepo interface {
 	DeleteArticle(ctx context.Context, callerID int, slug string) error
 	ListArticles(ctx context.Context, filter ListArticlesFilter, viewerID int) (*ArticleList, error)
 	FeedArticles(ctx context.Context, filter ArticleFeedFilter, viewerID int) (*ArticleList, error)
+	ViewerFollowsUser(ctx context.Context, viewerID int, username string) bool
 }
 
 type articlePublisher interface {
 	PublishArticle(ctx context.Context, article *Article) error
 }
 
+type articleSubscriber interface {
+	ArticleSubscribe(ctx context.Context) (<-chan Article, error)
+}
+
 // ArticleController implements the article management use-cases of the domain.
 type ArticleController struct {
 	repo articleRepo
 	pub  articlePublisher
+	sub  articleSubscriber
 }
 
 // NewArticleController creates an ArticleController backed by the given repository.
-func NewArticleController(r articleRepo, p articlePublisher) *ArticleController {
+func NewArticleController(r articleRepo, p articlePublisher, s articleSubscriber) *ArticleController {
 	return &ArticleController{
 		repo: r,
 		pub:  p,
+		sub:  s,
 	}
 }
 
@@ -137,4 +144,34 @@ func (c *ArticleController) ListArticles(ctx context.Context, filter ListArticle
 // FeedArticles returns a paginated list of articles from authors the viewer follows.
 func (c *ArticleController) FeedArticles(ctx context.Context, filter ArticleFeedFilter, viewerID int) (*ArticleList, error) {
 	return c.repo.FeedArticles(ctx, filter, viewerID)
+}
+
+func (c *ArticleController) ArticleSubscribe(ctx context.Context, viewerID int) (<-chan Article, error) {
+	in, err := c.sub.ArticleSubscribe(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan Article)
+
+	go func() {
+		defer close(out)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case a, ok := <-in:
+				if !ok {
+					return
+				}
+				if c.repo.ViewerFollowsUser(ctx, viewerID, a.Author.Username) {
+					a.Author.Following = true
+					out <- a
+				}
+			}
+		}
+	}()
+
+	return out, nil
 }

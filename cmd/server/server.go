@@ -42,7 +42,7 @@ func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	userController := domain.New(database, jwtSecret)
 	profileController := domain.NewProfileController(database)
-	articleController := domain.NewArticleController(database, database)
+	articleController := domain.NewArticleController(database, database, database)
 	tagController := domain.NewTagController(database)
 	commentController := domain.NewCommentController(database, database)
 	handlers := webserver.NewHandler(userController, profileController, articleController, tagController, commentController)
@@ -75,12 +75,19 @@ func main() {
 		pb.CommentService_GetComments_FullMethodName:       igrpc.OptionalAuth,
 		pb.CommentService_DeleteComment_FullMethodName:     igrpc.MandatoryAuth,
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(igrpc.AuthInterceptor(jwtSecret, authMethods)))
+	streamAuthMethods := map[string]igrpc.AuthRequirement{
+		pb.ArticleService_LiveArticleFeed_FullMethodName: igrpc.MandatoryAuth,
+		pb.CommentService_LiveCommentFeed_FullMethodName: igrpc.OptionalAuth,
+	}
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(igrpc.AuthInterceptor(jwtSecret, authMethods)),
+		grpc.StreamInterceptor(igrpc.StreamAuthInterceptor(jwtSecret, streamAuthMethods)),
+	)
 	userGrpcServer := igrpc.NewUserServer(userController)
 	tagGrpcServer := igrpc.NewTagServer(tagController)
 	profileGrpcServer := igrpc.NewProfileServer(profileController)
 	commentGrpcServer := igrpc.NewCommentServer(commentController, database)
-	articleGrpcServer := igrpc.NewArticleServer(articleController, database)
+	articleGrpcServer := igrpc.NewArticleServer(articleController)
 	healthServer := health.NewServer()
 	igrpcServer := igrpc.NewGrpcServer(grpcServer, healthServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
 

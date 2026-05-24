@@ -949,6 +949,18 @@ func (p *Postgres) DeleteComment(ctx context.Context, callerID int, articleSlug 
 	return err
 }
 
+// ViewerFollowsUser returns true if the user identified by viewerID follows the user with the given username.
+func (p *Postgres) ViewerFollowsUser(ctx context.Context, viewerID int, username string) bool {
+	var follows bool
+	err := p.db.QueryRowxContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM follows f
+			JOIN users u ON u.id = f.followee_id
+			WHERE f.follower_id = $1 AND u.username = $2
+		)`, viewerID, username).Scan(&follows)
+	return err == nil && follows
+}
+
 // GetAllTags returns all tag names stored in the database, ordered alphabetically.
 func (p *Postgres) GetAllTags(ctx context.Context) ([]string, error) {
 	var tags []string
@@ -993,30 +1005,24 @@ type articleNotifyPayload struct {
 	TagList        []string  `json:"tag_list"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
-	Favorited      bool      `json:"favorited"`
-	FavoritesCount int       `json:"favorites_count"`
 	AuthorUsername string    `json:"author_username"`
 	AuthorBio      *string   `json:"author_bio"`
 	AuthorImage    *string   `json:"author_image"`
-	AuthorFollowing bool     `json:"author_following"`
 }
 
 // PublishArticle notifies all listeners on the articles channel with the article payload.
 func (p *Postgres) PublishArticle(ctx context.Context, a *domain.Article) error {
 	payload := articleNotifyPayload{
-		Slug:            a.Slug,
-		Title:           a.Title,
-		Description:     a.Description,
-		Body:            a.Body,
-		TagList:         a.TagList,
-		CreatedAt:       a.CreatedAt,
-		UpdatedAt:       a.UpdatedAt,
-		Favorited:       a.Favorited,
-		FavoritesCount:  a.FavoritesCount,
-		AuthorUsername:  a.Author.Username,
-		AuthorBio:       a.Author.Bio,
-		AuthorImage:     a.Author.Image,
-		AuthorFollowing: a.Author.Following,
+		Slug:           a.Slug,
+		Title:          a.Title,
+		Description:    a.Description,
+		Body:           a.Body,
+		TagList:        a.TagList,
+		CreatedAt:      a.CreatedAt,
+		UpdatedAt:      a.UpdatedAt,
+		AuthorUsername: a.Author.Username,
+		AuthorBio:      a.Author.Bio,
+		AuthorImage:    a.Author.Image,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -1028,14 +1034,14 @@ func (p *Postgres) PublishArticle(ctx context.Context, a *domain.Article) error 
 
 // ArticleSubscribe listens on the Postgres articles notification channel and forwards
 // each received article to the returned channel. The channel is closed when ctx is done.
-func (p *Postgres) ArticleSubscribe(ctx context.Context) <-chan domain.Article {
+func (p *Postgres) ArticleSubscribe(ctx context.Context) (<-chan domain.Article, error) {
 	out := make(chan domain.Article)
 
 	listener := pq.NewListener(p.dsn, 10*time.Second, time.Minute, nil)
 	if err := listener.Listen(articleNotifyChannel); err != nil {
 		listener.Close() //nolint:errcheck
 		close(out)
-		return out
+		return nil, err
 	}
 
 	go func() {
@@ -1059,27 +1065,25 @@ func (p *Postgres) ArticleSubscribe(ctx context.Context) <-chan domain.Article {
 					tagList = []string{}
 				}
 				out <- domain.Article{
-					Slug:           payload.Slug,
-					Title:          payload.Title,
-					Description:    payload.Description,
-					Body:           payload.Body,
-					TagList:        tagList,
-					CreatedAt:      payload.CreatedAt,
-					UpdatedAt:      payload.UpdatedAt,
-					Favorited:      payload.Favorited,
-					FavoritesCount: payload.FavoritesCount,
+					Slug:        payload.Slug,
+					Title:       payload.Title,
+					Description: payload.Description,
+					Body:        payload.Body,
+					TagList:     tagList,
+					CreatedAt:   payload.CreatedAt,
+					UpdatedAt:   payload.UpdatedAt,
 					Author: domain.Profile{
-						Username:  payload.AuthorUsername,
-						Bio:       payload.AuthorBio,
-						Image:     payload.AuthorImage,
-						Following: payload.AuthorFollowing,
+						Username: payload.AuthorUsername,
+						Bio:      payload.AuthorBio,
+						Image:    payload.AuthorImage,
+						//Following: payload.AuthorFollowing,
 					},
 				}
 			}
 		}
 	}()
 
-	return out
+	return out, nil
 }
 
 type commentNotifyPayload struct {

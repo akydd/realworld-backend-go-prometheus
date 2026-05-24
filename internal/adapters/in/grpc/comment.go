@@ -90,7 +90,10 @@ func (s *CommentServer) LiveCommentFeed(in *pb.LiveCommentFeedRequest, stream gr
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
-		case c := <-sub:
+		case c, ok := <-sub:
+			if !ok {
+				return nil
+			}
 			err := stream.Send(&pb.CommentResponseInner{
 				Id:        int64(c.ID),
 				CreatedAt: timestamppb.New(c.CreatedAt),

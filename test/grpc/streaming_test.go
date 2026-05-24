@@ -16,25 +16,45 @@ func TestLiveArticleFeed(t *testing.T) {
 	conn := dial(t)
 	users := pb.NewUserServiceClient(conn)
 	articles := pb.NewArticleServiceClient(conn)
+	profiles := pb.NewProfileServiceClient(conn)
 	ctx := context.Background()
 	uid := genUID()
 
-	regResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
+	// Register the author.
+	authorResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
 		User: &pb.RegisterUserRequestInner{
-			Username: "stream_art_" + uid,
-			Email:    "stream_art_" + uid + "@test.com",
+			Username: "stream_art_author_" + uid,
+			Email:    "stream_art_author_" + uid + "@test.com",
 			Password: "password123",
 		},
 	})
 	if err != nil {
-		t.Fatalf("RegisterUser: %v", err)
+		t.Fatalf("RegisterUser author: %v", err)
 	}
-	authCtx := withToken(ctx, regResp.GetUser().GetToken())
+	authorCtx := withToken(ctx, authorResp.GetUser().GetToken())
+
+	// Register the subscriber, who will follow the author and open the stream.
+	subResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
+		User: &pb.RegisterUserRequestInner{
+			Username: "stream_art_sub_" + uid,
+			Email:    "stream_art_sub_" + uid + "@test.com",
+			Password: "password123",
+		},
+	})
+	if err != nil {
+		t.Fatalf("RegisterUser subscriber: %v", err)
+	}
+	subCtx := withToken(ctx, subResp.GetUser().GetToken())
+
+	// Subscriber follows the author so articles appear in their live feed.
+	if _, err = profiles.FollowUser(subCtx, &pb.FollowUserRequest{Username: authorResp.GetUser().GetUsername()}); err != nil {
+		t.Fatalf("FollowUser: %v", err)
+	}
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream, err := articles.LiveArticleFeed(streamCtx, &emptypb.Empty{})
+	stream, err := articles.LiveArticleFeed(withToken(streamCtx, subResp.GetUser().GetToken()), &emptypb.Empty{})
 	if err != nil {
 		t.Fatalf("LiveArticleFeed: %v", err)
 	}
@@ -51,7 +71,7 @@ func TestLiveArticleFeed(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	title := "Streaming Test Article " + uid
-	artResp, err := articles.CreateArticle(authCtx, &pb.CreateArticleRequest{
+	artResp, err := articles.CreateArticle(authorCtx, &pb.CreateArticleRequest{
 		Article: &pb.CreateArticleRequestInner{
 			Title:       title,
 			Description: "desc",
@@ -63,7 +83,7 @@ func TestLiveArticleFeed(t *testing.T) {
 	}
 	slug := artResp.GetArticle().GetSlug()
 	t.Cleanup(func() {
-		articles.DeleteArticle(authCtx, &pb.DeleteArticleRequest{Slug: slug}) //nolint:errcheck
+		articles.DeleteArticle(authorCtx, &pb.DeleteArticleRequest{Slug: slug}) //nolint:errcheck
 	})
 
 	select {
