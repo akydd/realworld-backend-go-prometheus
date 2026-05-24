@@ -96,10 +96,11 @@ Pure Go with no framework dependencies. Contains:
 - **`UpdateArticle`**: Extended with `TagList *[]string` — `nil` means preserve existing tags; non-nil (including empty slice) replaces them.
 - **`TagController`**: Handles tag listing. Method: `GetTags(ctx)`.
 - **`tagRepo` interface**: Decouples tag domain from persistence. Method: `GetAllTags(ctx)`.
-- **`CommentController`**: Handles comment creation, retrieval, deletion, and live streaming. Validates body is non-blank on creation. After a successful `CreateComment`, publishes the new comment via the `commentPublisher` port. Methods: `CreateComment(ctx, authorID, articleSlug, c)`, `GetComments(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`.
+- **`CommentController`**: Handles comment creation, retrieval, deletion, and live streaming. Validates body is non-blank on creation. After a successful `CreateComment`, publishes the new comment via the `commentPublisher` port. Methods: `CreateComment(ctx, authorID, articleSlug, c)`, `GetComments(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`, `CommentSubscribe(ctx, slug, viewerID)`.
+- **`CommentSubscribe(ctx, slug, viewerID)`**: Subscribes to the per-slug pub/sub channel via the `commentSubscriber` port, then sets `comment.Author.Following = true` for each comment whose author the viewer follows (checked via `articleRepo.ViewerFollowsUser`). Passes `viewerID=0` for unauthenticated callers, which always yields `following: false`. Returns a read-only channel; closed when `ctx` is cancelled or the upstream channel closes.
 - **`commentRepo` interface**: Decouples comment domain from persistence. Methods: `InsertComment(ctx, authorID, articleSlug, c)`, `GetCommentsByArticleSlug(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`.
 - **`commentPublisher` interface**: `PublishComment(ctx, slug string, *Comment) error` — called by `CommentController.CreateComment` after a successful insert.
-- **`commentSubscriber` interface**: `CommentSubscribe(ctx, slug string) <-chan Comment` — returns a channel scoped to a single article slug.
+- **`commentSubscriber` interface**: `CommentSubscribe(ctx, slug string) (<-chan Comment, error)` — returns a channel scoped to a single article slug.
 
 ### Inbound Adapter — HTTP (`internal/adapters/in/webserver/`)
 Handles the HTTP protocol layer:
@@ -151,7 +152,7 @@ Two interceptors implement this scheme:
 - **`AuthInterceptor`** — unary interceptor. The per-method map is passed at construction; the interceptor extracts the JWT from the `authorization` metadata key (`Token <jwt>`), validates it, parses the `sub` claim as an integer user ID, and stores it in the request context under `UserIDKey`.
 - **`StreamAuthInterceptor`** — streaming interceptor with identical logic. Because streaming handlers receive a `grpc.ServerStream` (whose context is immutable), the interceptor wraps the stream in a `wrappedStream` that returns the enriched context from its `Context()` method, then passes the wrapper to the handler. Per-method requirements for streaming RPCs (`LiveArticleFeed` → `MandatoryAuth`, `LiveCommentFeed` → `OptionalAuth`) are declared in a separate map in `cmd/server/server.go`.
 
-Handlers read the ID with `ctx.Value(UserIDKey).(int)`; for optional-auth handlers they use the zero value (unauthenticated) if the key is absent.
+Mandatory-auth handlers read the ID with `ctx.Value(UserIDKey).(int)`. Optional-auth handlers use the safe two-value form `userID, _ := ctx.Value(UserIDKey).(int)` so that an absent key yields `0` (unauthenticated) rather than a panic.
 
 **Service servers** — each file defines a narrow service interface (local to the package) and a server struct that implements the generated proto service interface:
 
@@ -171,7 +172,6 @@ Handlers read the ID with `ctx.Value(UserIDKey).(int)`; for optional-auth handle
 - `articleToProto` / `articleListItemToProto` — convert domain `Article` to the single-article and list-item proto shapes respectively.
 - `articleAuthorToProto` — converts a domain `Profile` to `ArticleAuthor`.
 - `articlesResponse` — builds the `ArticlesResponse` (list + total count) from a domain `ArticleList`.
-- `articleErr` — maps `ArticleNotFoundError` / `ForbiddenError` to the correct gRPC status; falls through to `Internal` for unexpected errors.
 
 ### Outbound Adapter — Database (`internal/adapters/out/db/`)
 PostgreSQL persistence via `sqlx`:

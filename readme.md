@@ -28,7 +28,7 @@ The project uses **Hexagonal Architecture** (Ports & Adapters):
 
 - **Domain layer** (`internal/domain/`) — pure Go business logic with no framework dependencies. Each resource (user, profile, article, comment, tag) has its own controller and repository interface.
 - **HTTP inbound adapter** (`internal/adapters/in/webserver/`) — Gorilla Mux HTTP server. Handlers decode requests, call domain services, and encode responses. Authentication is handled by JWT middleware.
-- **gRPC inbound adapter** (`internal/adapters/in/grpc/`) — native gRPC server backed by proto-generated stubs. A single unary interceptor handles auth (mandatory, optional, or none) per method. Both servers share the same domain controller instances — no business logic duplication.
+- **gRPC inbound adapter** (`internal/adapters/in/grpc/`) — native gRPC server backed by proto-generated stubs. A unary interceptor and a separate stream interceptor each handle auth (mandatory, optional, or none) per method. Both servers share the same domain controller instances — no business logic duplication.
 - **Outbound adapter** (`internal/adapters/out/db/`) — PostgreSQL persistence via `sqlx`. Goose migrations run automatically on startup.
 
 See [arch.md](arch.md) for a full description of every layer, route, schema, and design decision.
@@ -182,7 +182,7 @@ The suite covers all gRPC endpoints across ten test files:
 | `favorites_test.go` | Favorite, get as favoriter/non-favoriter, list by favorited, unfavorite |
 | `pagination_test.go` | Limit/offset combinations, empty page total count, most-recent-first order |
 | `errors_test.go` | Missing fields, duplicates, wrong password, `NotFound`, `PermissionDenied`, `Unauthenticated` |
-| `streaming_test.go` | `LiveArticleFeed` (auth required, filters to followed authors), `LiveCommentFeed` (auth optional, per-slug isolation) |
+| `streaming_test.go` | `LiveArticleFeed` (auth required, filters to followed authors); `LiveCommentFeed` authenticated (`following: true` for followed authors) and unauthenticated (`following: false`), plus per-slug isolation |
 
 ### Why Go instead of shell scripts or Bruno
 

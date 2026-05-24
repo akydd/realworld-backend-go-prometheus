@@ -1076,7 +1076,6 @@ func (p *Postgres) ArticleSubscribe(ctx context.Context) (<-chan domain.Article,
 						Username: payload.AuthorUsername,
 						Bio:      payload.AuthorBio,
 						Image:    payload.AuthorImage,
-						//Following: payload.AuthorFollowing,
 					},
 				}
 			}
@@ -1087,27 +1086,25 @@ func (p *Postgres) ArticleSubscribe(ctx context.Context) (<-chan domain.Article,
 }
 
 type commentNotifyPayload struct {
-	ID              int       `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	Body            string    `json:"body"`
-	AuthorUsername  string    `json:"author_username"`
-	AuthorBio       *string   `json:"author_bio"`
-	AuthorImage     *string   `json:"author_image"`
-	AuthorFollowing bool      `json:"author_following"`
+	ID             int       `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Body           string    `json:"body"`
+	AuthorUsername string    `json:"author_username"`
+	AuthorBio      *string   `json:"author_bio"`
+	AuthorImage    *string   `json:"author_image"`
 }
 
 // PublishComment notifies all listeners on the per-slug comment channel with the comment payload.
 func (p *Postgres) PublishComment(ctx context.Context, slug string, c *domain.Comment) error {
 	payload := commentNotifyPayload{
-		ID:              c.ID,
-		CreatedAt:       c.CreatedAt,
-		UpdatedAt:       c.UpdatedAt,
-		Body:            c.Body,
-		AuthorUsername:  c.Author.Username,
-		AuthorBio:       c.Author.Bio,
-		AuthorImage:     c.Author.Image,
-		AuthorFollowing: c.Author.Following,
+		ID:             c.ID,
+		CreatedAt:      c.CreatedAt,
+		UpdatedAt:      c.UpdatedAt,
+		Body:           c.Body,
+		AuthorUsername: c.Author.Username,
+		AuthorBio:      c.Author.Bio,
+		AuthorImage:    c.Author.Image,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -1119,14 +1116,14 @@ func (p *Postgres) PublishComment(ctx context.Context, slug string, c *domain.Co
 
 // CommentSubscribe listens on the per-slug Postgres comment notification channel and forwards
 // each received comment to the returned channel. The channel is closed when ctx is done.
-func (p *Postgres) CommentSubscribe(ctx context.Context, slug string) <-chan domain.Comment {
+func (p *Postgres) CommentSubscribe(ctx context.Context, slug string) (<-chan domain.Comment, error) {
 	out := make(chan domain.Comment)
 
 	listener := pq.NewListener(p.dsn, 10*time.Second, time.Minute, nil)
 	if err := listener.Listen(commentNotifyPrefix + slug); err != nil {
 		listener.Close() //nolint:errcheck
 		close(out)
-		return out
+		return nil, err
 	}
 
 	go func() {
@@ -1151,15 +1148,14 @@ func (p *Postgres) CommentSubscribe(ctx context.Context, slug string) <-chan dom
 					UpdatedAt: payload.UpdatedAt,
 					Body:      payload.Body,
 					Author: domain.Profile{
-						Username:  payload.AuthorUsername,
-						Bio:       payload.AuthorBio,
-						Image:     payload.AuthorImage,
-						Following: payload.AuthorFollowing,
+						Username: payload.AuthorUsername,
+						Bio:      payload.AuthorBio,
+						Image:    payload.AuthorImage,
 					},
 				}
 			}
 		}
 	}()
 
-	return out
+	return out, nil
 }

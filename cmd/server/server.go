@@ -44,7 +44,7 @@ func main() {
 	profileController := domain.NewProfileController(database)
 	articleController := domain.NewArticleController(database, database, database)
 	tagController := domain.NewTagController(database)
-	commentController := domain.NewCommentController(database, database)
+	commentController := domain.NewCommentController(database, database, database)
 	handlers := webserver.NewHandler(userController, profileController, articleController, tagController, commentController)
 
 	port := os.Getenv("SERVER_PORT")
@@ -86,7 +86,7 @@ func main() {
 	userGrpcServer := igrpc.NewUserServer(userController)
 	tagGrpcServer := igrpc.NewTagServer(tagController)
 	profileGrpcServer := igrpc.NewProfileServer(profileController)
-	commentGrpcServer := igrpc.NewCommentServer(commentController, database)
+	commentGrpcServer := igrpc.NewCommentServer(commentController)
 	articleGrpcServer := igrpc.NewArticleServer(articleController)
 	healthServer := health.NewServer()
 	igrpcServer := igrpc.NewGrpcServer(grpcServer, healthServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)

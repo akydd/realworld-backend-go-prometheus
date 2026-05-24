@@ -99,7 +99,110 @@ func TestLiveArticleFeed(t *testing.T) {
 	}
 }
 
-func TestLiveCommentFeed(t *testing.T) {
+// TestLiveCommentFeedAuthenticated verifies that an authenticated subscriber who
+// follows the comment author receives comments with author.following = true.
+func TestLiveCommentFeedAuthenticated(t *testing.T) {
+	conn := dial(t)
+	users := pb.NewUserServiceClient(conn)
+	articles := pb.NewArticleServiceClient(conn)
+	comments := pb.NewCommentServiceClient(conn)
+	profiles := pb.NewProfileServiceClient(conn)
+	ctx := context.Background()
+	uid := genUID()
+
+	// Register the author.
+	authorResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
+		User: &pb.RegisterUserRequestInner{
+			Username: "cmt_author_" + uid,
+			Email:    "cmt_author_" + uid + "@test.com",
+			Password: "password123",
+		},
+	})
+	if err != nil {
+		t.Fatalf("RegisterUser author: %v", err)
+	}
+	authorCtx := withToken(ctx, authorResp.GetUser().GetToken())
+
+	// Register the subscriber.
+	subResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
+		User: &pb.RegisterUserRequestInner{
+			Username: "cmt_sub_" + uid,
+			Email:    "cmt_sub_" + uid + "@test.com",
+			Password: "password123",
+		},
+	})
+	if err != nil {
+		t.Fatalf("RegisterUser subscriber: %v", err)
+	}
+	subCtx := withToken(ctx, subResp.GetUser().GetToken())
+
+	// Subscriber follows the author so following=true appears in streamed comments.
+	if _, err = profiles.FollowUser(subCtx, &pb.FollowUserRequest{Username: authorResp.GetUser().GetUsername()}); err != nil {
+		t.Fatalf("FollowUser: %v", err)
+	}
+
+	artResp, err := articles.CreateArticle(authorCtx, &pb.CreateArticleRequest{
+		Article: &pb.CreateArticleRequestInner{
+			Title:       "Auth Comment Stream Test " + uid,
+			Description: "desc",
+			Body:        "body",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateArticle: %v", err)
+	}
+	slug := artResp.GetArticle().GetSlug()
+	t.Cleanup(func() {
+		articles.DeleteArticle(authorCtx, &pb.DeleteArticleRequest{Slug: slug}) //nolint:errcheck
+	})
+
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	stream, err := comments.LiveCommentFeed(withToken(streamCtx, subResp.GetUser().GetToken()), &pb.LiveCommentFeedRequest{Slug: slug})
+	if err != nil {
+		t.Fatalf("LiveCommentFeed: %v", err)
+	}
+
+	received := make(chan *pb.CommentResponseInner, 1)
+	go func() {
+		item, recvErr := stream.Recv()
+		if recvErr != nil {
+			return
+		}
+		received <- item
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	body := "authenticated stream " + uid
+	_, err = comments.CreateComment(authorCtx, &pb.CreateCommentRequest{
+		Slug:    slug,
+		Comment: &pb.CreateCommentRequestInner{Body: body},
+	})
+	if err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+
+	select {
+	case item := <-received:
+		if item.GetBody() != body {
+			t.Errorf("body: got %q, want %q", item.GetBody(), body)
+		}
+		if item.GetAuthor().GetUsername() != "cmt_author_"+uid {
+			t.Errorf("author username: got %q, want %q", item.GetAuthor().GetUsername(), "cmt_author_"+uid)
+		}
+		if !item.GetAuthor().GetFollowing() {
+			t.Error("following: got false, want true (subscriber follows the comment author)")
+		}
+	case <-time.After(3 * time.Second):
+		t.Error("timed out waiting for streamed comment")
+	}
+}
+
+// TestLiveCommentFeedUnauthenticated verifies that an unauthenticated subscriber
+// receives comments with author.following always false.
+func TestLiveCommentFeedUnauthenticated(t *testing.T) {
 	conn := dial(t)
 	users := pb.NewUserServiceClient(conn)
 	articles := pb.NewArticleServiceClient(conn)
@@ -109,8 +212,8 @@ func TestLiveCommentFeed(t *testing.T) {
 
 	regResp, err := users.RegisterUser(ctx, &pb.RegisterUserRequest{
 		User: &pb.RegisterUserRequestInner{
-			Username: "stream_cmt_" + uid,
-			Email:    "stream_cmt_" + uid + "@test.com",
+			Username: "cmt_unauth_" + uid,
+			Email:    "cmt_unauth_" + uid + "@test.com",
 			Password: "password123",
 		},
 	})
@@ -121,7 +224,7 @@ func TestLiveCommentFeed(t *testing.T) {
 
 	artResp, err := articles.CreateArticle(authCtx, &pb.CreateArticleRequest{
 		Article: &pb.CreateArticleRequestInner{
-			Title:       "Comment Stream Test " + uid,
+			Title:       "Unauth Comment Stream Test " + uid,
 			Description: "desc",
 			Body:        "body",
 		},
@@ -137,6 +240,7 @@ func TestLiveCommentFeed(t *testing.T) {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// Open the stream without a token (OptionalAuth).
 	stream, err := comments.LiveCommentFeed(streamCtx, &pb.LiveCommentFeedRequest{Slug: slug})
 	if err != nil {
 		t.Fatalf("LiveCommentFeed: %v", err)
@@ -153,7 +257,7 @@ func TestLiveCommentFeed(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	body := "hello from the stream " + uid
+	body := "unauthenticated stream " + uid
 	_, err = comments.CreateComment(authCtx, &pb.CreateCommentRequest{
 		Slug:    slug,
 		Comment: &pb.CreateCommentRequestInner{Body: body},
@@ -165,10 +269,10 @@ func TestLiveCommentFeed(t *testing.T) {
 	select {
 	case item := <-received:
 		if item.GetBody() != body {
-			t.Errorf("streamed body: got %q, want %q", item.GetBody(), body)
+			t.Errorf("body: got %q, want %q", item.GetBody(), body)
 		}
-		if item.GetAuthor().GetUsername() != "stream_cmt_"+uid {
-			t.Errorf("streamed author: got %q, want %q", item.GetAuthor().GetUsername(), "stream_cmt_"+uid)
+		if item.GetAuthor().GetFollowing() {
+			t.Error("following: got true, want false for unauthenticated stream")
 		}
 	case <-time.After(3 * time.Second):
 		t.Error("timed out waiting for streamed comment")

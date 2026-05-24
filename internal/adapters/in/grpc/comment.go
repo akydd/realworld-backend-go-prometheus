@@ -15,20 +15,16 @@ type commentService interface {
 	CreateComment(ctx context.Context, authorID int, articleSlug string, c *domain.CreateComment) (*domain.Comment, error)
 	GetComments(ctx context.Context, articleSlug string, viewerID int) ([]*domain.Comment, error)
 	DeleteComment(ctx context.Context, callerID int, articleSlug string, commentID int) error
-}
-
-type commentSubscriptionService interface {
-	CommentSubscribe(ctx context.Context, slug string) <-chan domain.Comment
+	CommentSubscribe(ctx context.Context, slug string, viewerID int) (<-chan domain.Comment, error)
 }
 
 type CommentServer struct {
 	pb.UnimplementedCommentServiceServer
 	commentService commentService
-	sub            commentSubscriptionService
 }
 
-func NewCommentServer(service commentService, sub commentSubscriptionService) *CommentServer {
-	return &CommentServer{commentService: service, sub: sub}
+func NewCommentServer(service commentService) *CommentServer {
+	return &CommentServer{commentService: service}
 }
 
 func commentToProto(c *domain.Comment) *pb.CommentResponseInner {
@@ -84,7 +80,11 @@ func (s *CommentServer) DeleteComment(ctx context.Context, in *pb.DeleteCommentR
 }
 
 func (s *CommentServer) LiveCommentFeed(in *pb.LiveCommentFeedRequest, stream grpc.ServerStreamingServer[pb.CommentResponseInner]) error {
-	sub := s.sub.CommentSubscribe(stream.Context(), in.GetSlug())
+	userID, _ := stream.Context().Value(UserIDKey).(int)
+	sub, err := s.commentService.CommentSubscribe(stream.Context(), in.GetSlug(), userID)
+	if err != nil {
+		return domainErr(err)
+	}
 
 	for {
 		select {
