@@ -10,7 +10,6 @@ import (
 	igrpc "realworld-backend-go/internal/adapters/in/grpc"
 	"realworld-backend-go/internal/adapters/in/webserver"
 	"realworld-backend-go/internal/adapters/out/db"
-	"realworld-backend-go/internal/adapters/out/publisher"
 	"realworld-backend-go/internal/domain"
 
 	"github.com/joho/godotenv"
@@ -40,23 +39,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	redis, err := publisher.New(&publisher.RedisConfig{
-		Password:           os.Getenv("REDIS_PASSWORD"),
-		Host:               os.Getenv("REDIS_HOST"),
-		Port:               os.Getenv("REDIS_PORT"),
-		ArticleChannelName: os.Getenv("ARTICLE_CHANNEL"),
-		CommentChannelName: os.Getenv("COMMENT_CHANNEL"),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	jwtSecret := os.Getenv("JWT_SECRET")
 	userController := domain.New(database, jwtSecret)
 	profileController := domain.NewProfileController(database)
-	articleController := domain.NewArticleController(database, redis)
+	articleController := domain.NewArticleController(database, database)
 	tagController := domain.NewTagController(database)
-	commentController := domain.NewCommentController(database, redis)
+	commentController := domain.NewCommentController(database, database)
 	handlers := webserver.NewHandler(userController, profileController, articleController, tagController, commentController)
 
 	port := os.Getenv("SERVER_PORT")
@@ -91,8 +79,8 @@ func main() {
 	userGrpcServer := igrpc.NewUserServer(userController)
 	tagGrpcServer := igrpc.NewTagServer(tagController)
 	profileGrpcServer := igrpc.NewProfileServer(profileController)
-	commentGrpcServer := igrpc.NewCommentServer(commentController, redis)
-	articleGrpcServer := igrpc.NewArticleServer(articleController, redis)
+	commentGrpcServer := igrpc.NewCommentServer(commentController, database)
+	articleGrpcServer := igrpc.NewArticleServer(articleController, database)
 	healthServer := health.NewServer()
 	igrpcServer := igrpc.NewGrpcServer(grpcServer, healthServer, userGrpcServer, tagGrpcServer, profileGrpcServer, commentGrpcServer, articleGrpcServer)
 

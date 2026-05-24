@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,9 +20,15 @@ import (
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
+const (
+	articleNotifyChannel = "articles"
+	commentNotifyPrefix  = "comments:"
+)
+
 // Postgres is the PostgreSQL adapter that satisfies all repository interfaces used by the domain layer.
 type Postgres struct {
-	db *sqlx.DB
+	db  *sqlx.DB
+	dsn string
 }
 
 // DBConfig holds the connection parameters required to open a PostgreSQL database.
@@ -63,9 +70,10 @@ func New(config *DBConfig) (*Postgres, error) {
 		return nil, err
 	}
 
-	db, err := sqlx.Open("postgres",
-		fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			config.Host, config.Port, config.User, config.Password, config.Name))
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.Host, config.Port, config.User, config.Password, config.Name)
+
+	db, err := sqlx.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +88,8 @@ func New(config *DBConfig) (*Postgres, error) {
 	}
 
 	return &Postgres{
-		db: db,
+		db:  db,
+		dsn: dsn,
 	}, nil
 }
 
@@ -974,4 +983,179 @@ func (p *Postgres) InsertUser(ctx context.Context, u *domain.RegisterUser) (*dom
 
 	user := convertUser(dbUser)
 	return &user, nil
+}
+
+type articleNotifyPayload struct {
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Body           string    `json:"body"`
+	TagList        []string  `json:"tag_list"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Favorited      bool      `json:"favorited"`
+	FavoritesCount int       `json:"favorites_count"`
+	AuthorUsername string    `json:"author_username"`
+	AuthorBio      *string   `json:"author_bio"`
+	AuthorImage    *string   `json:"author_image"`
+	AuthorFollowing bool     `json:"author_following"`
+}
+
+// PublishArticle notifies all listeners on the articles channel with the article payload.
+func (p *Postgres) PublishArticle(ctx context.Context, a *domain.Article) error {
+	payload := articleNotifyPayload{
+		Slug:            a.Slug,
+		Title:           a.Title,
+		Description:     a.Description,
+		Body:            a.Body,
+		TagList:         a.TagList,
+		CreatedAt:       a.CreatedAt,
+		UpdatedAt:       a.UpdatedAt,
+		Favorited:       a.Favorited,
+		FavoritesCount:  a.FavoritesCount,
+		AuthorUsername:  a.Author.Username,
+		AuthorBio:       a.Author.Bio,
+		AuthorImage:     a.Author.Image,
+		AuthorFollowing: a.Author.Following,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = p.db.ExecContext(ctx, "SELECT pg_notify($1, $2)", articleNotifyChannel, string(data))
+	return err
+}
+
+// ArticleSubscribe listens on the Postgres articles notification channel and forwards
+// each received article to the returned channel. The channel is closed when ctx is done.
+func (p *Postgres) ArticleSubscribe(ctx context.Context) <-chan domain.Article {
+	out := make(chan domain.Article)
+
+	listener := pq.NewListener(p.dsn, 10*time.Second, time.Minute, nil)
+	if err := listener.Listen(articleNotifyChannel); err != nil {
+		listener.Close() //nolint:errcheck
+		close(out)
+		return out
+	}
+
+	go func() {
+		defer close(out)
+		defer listener.Close() //nolint:errcheck
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case n := <-listener.NotificationChannel():
+				if n == nil {
+					return
+				}
+				var payload articleNotifyPayload
+				if err := json.Unmarshal([]byte(n.Extra), &payload); err != nil {
+					continue
+				}
+				tagList := payload.TagList
+				if tagList == nil {
+					tagList = []string{}
+				}
+				out <- domain.Article{
+					Slug:           payload.Slug,
+					Title:          payload.Title,
+					Description:    payload.Description,
+					Body:           payload.Body,
+					TagList:        tagList,
+					CreatedAt:      payload.CreatedAt,
+					UpdatedAt:      payload.UpdatedAt,
+					Favorited:      payload.Favorited,
+					FavoritesCount: payload.FavoritesCount,
+					Author: domain.Profile{
+						Username:  payload.AuthorUsername,
+						Bio:       payload.AuthorBio,
+						Image:     payload.AuthorImage,
+						Following: payload.AuthorFollowing,
+					},
+				}
+			}
+		}
+	}()
+
+	return out
+}
+
+type commentNotifyPayload struct {
+	ID              int       `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	Body            string    `json:"body"`
+	AuthorUsername  string    `json:"author_username"`
+	AuthorBio       *string   `json:"author_bio"`
+	AuthorImage     *string   `json:"author_image"`
+	AuthorFollowing bool      `json:"author_following"`
+}
+
+// PublishComment notifies all listeners on the per-slug comment channel with the comment payload.
+func (p *Postgres) PublishComment(ctx context.Context, slug string, c *domain.Comment) error {
+	payload := commentNotifyPayload{
+		ID:              c.ID,
+		CreatedAt:       c.CreatedAt,
+		UpdatedAt:       c.UpdatedAt,
+		Body:            c.Body,
+		AuthorUsername:  c.Author.Username,
+		AuthorBio:       c.Author.Bio,
+		AuthorImage:     c.Author.Image,
+		AuthorFollowing: c.Author.Following,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = p.db.ExecContext(ctx, "SELECT pg_notify($1, $2)", commentNotifyPrefix+slug, string(data))
+	return err
+}
+
+// CommentSubscribe listens on the per-slug Postgres comment notification channel and forwards
+// each received comment to the returned channel. The channel is closed when ctx is done.
+func (p *Postgres) CommentSubscribe(ctx context.Context, slug string) <-chan domain.Comment {
+	out := make(chan domain.Comment)
+
+	listener := pq.NewListener(p.dsn, 10*time.Second, time.Minute, nil)
+	if err := listener.Listen(commentNotifyPrefix + slug); err != nil {
+		listener.Close() //nolint:errcheck
+		close(out)
+		return out
+	}
+
+	go func() {
+		defer close(out)
+		defer listener.Close() //nolint:errcheck
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case n := <-listener.NotificationChannel():
+				if n == nil {
+					return
+				}
+				var payload commentNotifyPayload
+				if err := json.Unmarshal([]byte(n.Extra), &payload); err != nil {
+					continue
+				}
+				out <- domain.Comment{
+					ID:        payload.ID,
+					CreatedAt: payload.CreatedAt,
+					UpdatedAt: payload.UpdatedAt,
+					Body:      payload.Body,
+					Author: domain.Profile{
+						Username:  payload.AuthorUsername,
+						Bio:       payload.AuthorBio,
+						Image:     payload.AuthorImage,
+						Following: payload.AuthorFollowing,
+					},
+				}
+			}
+		}
+	}()
+
+	return out
 }
