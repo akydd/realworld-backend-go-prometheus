@@ -1075,7 +1075,7 @@ const file_article_proto_rawDesc = "" +
 	"\x06author\x18\t \x01(\v2\x0e.ArticleAuthorR\x06author\"g\n" +
 	"\x10ArticlesResponse\x12,\n" +
 	"\barticles\x18\x01 \x03(\v2\x10.ArticleListItemR\barticles\x12%\n" +
-	"\x0earticles_count\x18\x02 \x01(\x05R\rarticlesCount2\xf6\x03\n" +
+	"\x0earticles_count\x18\x02 \x01(\x05R\rarticlesCount2\xb5\x04\n" +
 	"\x0eArticleService\x128\n" +
 	"\rCreateArticle\x12\x15.CreateArticleRequest\x1a\x10.ArticleResponse\x12>\n" +
 	"\x10GetArticleBySlug\x12\x18.GetArticleBySlugRequest\x1a\x10.ArticleResponse\x128\n" +
@@ -1084,7 +1084,8 @@ const file_article_proto_rawDesc = "" +
 	"\x11UnfavoriteArticle\x12\x19.UnfavoriteArticleRequest\x1a\x10.ArticleResponse\x12>\n" +
 	"\rDeleteArticle\x12\x15.DeleteArticleRequest\x1a\x16.google.protobuf.Empty\x127\n" +
 	"\fListArticles\x12\x14.ListArticlesRequest\x1a\x11.ArticlesResponse\x127\n" +
-	"\fFeedArticles\x12\x14.FeedArticlesRequest\x1a\x11.ArticlesResponseB7B\fArticleProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
+	"\fFeedArticles\x12\x14.FeedArticlesRequest\x1a\x11.ArticlesResponse\x12=\n" +
+	"\x0fLiveArticleFeed\x12\x16.google.protobuf.Empty\x1a\x10.ArticleListItem0\x01B7B\fArticleProtoP\x01Z%realworld-backend-go/api/proto/gen/pbb\x06proto3"
 
 var (
 	file_article_proto_rawDescOnce sync.Once
@@ -1139,16 +1140,18 @@ var file_article_proto_depIdxs = []int32{
 	8,  // 16: ArticleService.DeleteArticle:input_type -> DeleteArticleRequest
 	9,  // 17: ArticleService.ListArticles:input_type -> ListArticlesRequest
 	10, // 18: ArticleService.FeedArticles:input_type -> FeedArticlesRequest
-	13, // 19: ArticleService.CreateArticle:output_type -> ArticleResponse
-	13, // 20: ArticleService.GetArticleBySlug:output_type -> ArticleResponse
-	13, // 21: ArticleService.UpdateArticle:output_type -> ArticleResponse
-	13, // 22: ArticleService.FavoriteArticle:output_type -> ArticleResponse
-	13, // 23: ArticleService.UnfavoriteArticle:output_type -> ArticleResponse
-	17, // 24: ArticleService.DeleteArticle:output_type -> google.protobuf.Empty
-	15, // 25: ArticleService.ListArticles:output_type -> ArticlesResponse
-	15, // 26: ArticleService.FeedArticles:output_type -> ArticlesResponse
-	19, // [19:27] is the sub-list for method output_type
-	11, // [11:19] is the sub-list for method input_type
+	17, // 19: ArticleService.LiveArticleFeed:input_type -> google.protobuf.Empty
+	13, // 20: ArticleService.CreateArticle:output_type -> ArticleResponse
+	13, // 21: ArticleService.GetArticleBySlug:output_type -> ArticleResponse
+	13, // 22: ArticleService.UpdateArticle:output_type -> ArticleResponse
+	13, // 23: ArticleService.FavoriteArticle:output_type -> ArticleResponse
+	13, // 24: ArticleService.UnfavoriteArticle:output_type -> ArticleResponse
+	17, // 25: ArticleService.DeleteArticle:output_type -> google.protobuf.Empty
+	15, // 26: ArticleService.ListArticles:output_type -> ArticlesResponse
+	15, // 27: ArticleService.FeedArticles:output_type -> ArticlesResponse
+	14, // 28: ArticleService.LiveArticleFeed:output_type -> ArticleListItem
+	20, // [20:29] is the sub-list for method output_type
+	11, // [11:20] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name

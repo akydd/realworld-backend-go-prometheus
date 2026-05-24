@@ -28,6 +28,7 @@ const (
 	ArticleService_DeleteArticle_FullMethodName     = "/ArticleService/DeleteArticle"
 	ArticleService_ListArticles_FullMethodName      = "/ArticleService/ListArticles"
 	ArticleService_FeedArticles_FullMethodName      = "/ArticleService/FeedArticles"
+	ArticleService_LiveArticleFeed_FullMethodName   = "/ArticleService/LiveArticleFeed"
 )
 
 // ArticleServiceClient is the client API for ArticleService service.
@@ -42,6 +43,7 @@ type ArticleServiceClient interface {
 	DeleteArticle(ctx context.Context, in *DeleteArticleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ListArticles(ctx context.Context, in *ListArticlesRequest, opts ...grpc.CallOption) (*ArticlesResponse, error)
 	FeedArticles(ctx context.Context, in *FeedArticlesRequest, opts ...grpc.CallOption) (*ArticlesResponse, error)
+	LiveArticleFeed(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ArticleListItem], error)
 }
 
 type articleServiceClient struct {
@@ -132,6 +134,25 @@ func (c *articleServiceClient) FeedArticles(ctx context.Context, in *FeedArticle
 	return out, nil
 }
 
+func (c *articleServiceClient) LiveArticleFeed(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ArticleListItem], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ArticleService_ServiceDesc.Streams[0], ArticleService_LiveArticleFeed_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[emptypb.Empty, ArticleListItem]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ArticleService_LiveArticleFeedClient = grpc.ServerStreamingClient[ArticleListItem]
+
 // ArticleServiceServer is the server API for ArticleService service.
 // All implementations must embed UnimplementedArticleServiceServer
 // for forward compatibility.
@@ -144,6 +165,7 @@ type ArticleServiceServer interface {
 	DeleteArticle(context.Context, *DeleteArticleRequest) (*emptypb.Empty, error)
 	ListArticles(context.Context, *ListArticlesRequest) (*ArticlesResponse, error)
 	FeedArticles(context.Context, *FeedArticlesRequest) (*ArticlesResponse, error)
+	LiveArticleFeed(*emptypb.Empty, grpc.ServerStreamingServer[ArticleListItem]) error
 	mustEmbedUnimplementedArticleServiceServer()
 }
 
@@ -177,6 +199,9 @@ func (UnimplementedArticleServiceServer) ListArticles(context.Context, *ListArti
 }
 func (UnimplementedArticleServiceServer) FeedArticles(context.Context, *FeedArticlesRequest) (*ArticlesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FeedArticles not implemented")
+}
+func (UnimplementedArticleServiceServer) LiveArticleFeed(*emptypb.Empty, grpc.ServerStreamingServer[ArticleListItem]) error {
+	return status.Error(codes.Unimplemented, "method LiveArticleFeed not implemented")
 }
 func (UnimplementedArticleServiceServer) mustEmbedUnimplementedArticleServiceServer() {}
 func (UnimplementedArticleServiceServer) testEmbeddedByValue()                        {}
@@ -343,6 +368,17 @@ func _ArticleService_FeedArticles_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArticleService_LiveArticleFeed_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(emptypb.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ArticleServiceServer).LiveArticleFeed(m, &grpc.GenericServerStream[emptypb.Empty, ArticleListItem]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ArticleService_LiveArticleFeedServer = grpc.ServerStreamingServer[ArticleListItem]
+
 // ArticleService_ServiceDesc is the grpc.ServiceDesc for ArticleService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -383,6 +419,12 @@ var ArticleService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ArticleService_FeedArticles_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "LiveArticleFeed",
+			Handler:       _ArticleService_LiveArticleFeed_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "article.proto",
 }

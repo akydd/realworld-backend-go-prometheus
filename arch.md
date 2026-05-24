@@ -34,7 +34,7 @@ realworld-backend-go/
 │       │   │   └── handlers.go       # HTTP request/response handling
 │       │   └── grpc/                 # Inbound: gRPC
 │       │       ├── server.go         # Registers all service servers + reflection
-│       │       ├── middleware.go     # AuthInterceptor (NoAuth/OptionalAuth/MandatoryAuth)
+│       │       ├── middleware.go     # AuthInterceptor + StreamAuthInterceptor (NoAuth/OptionalAuth/MandatoryAuth)
 │       │       ├── user.go           # UserServer
 │       │       ├── article.go        # ArticleServer
 │       │       ├── profile.go        # ProfileServer
@@ -61,7 +61,8 @@ realworld-backend-go/
 │   ├── feed_test.go
 │   ├── favorites_test.go
 │   ├── pagination_test.go
-│   └── errors_test.go
+│   ├── errors_test.go
+│   └── streaming_test.go             # LiveArticleFeed, LiveCommentFeed, slug isolation
 ├── compose.yaml                      # Docker Compose (prod DB)
 ├── compose.test.yaml                 # Docker Compose (test DB)
 ├── Makefile                          # make int-tests / make int-tests-grpc
@@ -84,16 +85,22 @@ Pure Go with no framework dependencies. Contains:
 - **`ArticleNotFoundError`**: Error type returned when an article lookup finds no matching article.
 - **`CommentNotFoundError`**: Error type returned when a comment lookup finds no matching comment (or the comment doesn't belong to the specified article).
 - **`ForbiddenError`**: Error type returned when an authenticated user attempts an action on a resource they don't own (e.g., editing or deleting another user's article or comment). Handlers map this to HTTP 403 with a resource-specific `"forbidden"` error body.
-- **`ArticleController`**: Handles article creation, retrieval, listing, feed, updates, favorites, and deletion. Validates input, deduplicates tags (first-occurrence wins), generates slug from title via exported `GenerateSlug(title)` (kebab-case regex). Methods: `CreateArticle(ctx, authorID, a)`, `GetArticleBySlug(ctx, slug, viewerID)`, `ListArticles(ctx, filter, viewerID)`, `FeedArticles(ctx, filter, viewerID)`, `UpdateArticle(ctx, callerID, slug, u)`, `FavoriteArticle(ctx, userID, slug)`, `UnfavoriteArticle(ctx, userID, slug)`, `DeleteArticle(ctx, callerID, slug)`.
-- **`articleRepo` interface**: Decouples article domain from persistence. Methods: `InsertArticle(ctx, authorID, slug, a)`, `GetArticleBySlug(ctx, slug, viewerID)`, `ListArticles(ctx, filter, viewerID)`, `FeedArticles(ctx, filter, viewerID)`, `UpdateArticle(ctx, callerID, slug, u)`, `FavoriteArticle(ctx, userID, slug)`, `UnfavoriteArticle(ctx, userID, slug)`, `DeleteArticle(ctx, callerID, slug)`.
+- **`ArticleController`**: Handles article creation, retrieval, listing, feed, updates, favorites, deletion, and live streaming. Validates input, deduplicates tags (first-occurrence wins), generates slug from title via exported `GenerateSlug(title)` (kebab-case regex). After a successful `CreateArticle`, publishes the new article via the `articlePublisher` port. Methods: `CreateArticle(ctx, authorID, a)`, `GetArticleBySlug(ctx, slug, viewerID)`, `ListArticles(ctx, filter, viewerID)`, `FeedArticles(ctx, filter, viewerID)`, `UpdateArticle(ctx, callerID, slug, u)`, `FavoriteArticle(ctx, userID, slug)`, `UnfavoriteArticle(ctx, userID, slug)`, `DeleteArticle(ctx, callerID, slug)`, `ArticleSubscribe(ctx, viewerID)`.
+- **`ArticleSubscribe(ctx, viewerID)`**: Subscribes to the article pub/sub channel via the `articleSubscriber` port, then filters the stream to only forward articles whose author the viewer follows (checked via `articleRepo.ViewerFollowsUser`). Returns a read-only channel of `Article`; the channel is closed when `ctx` is cancelled or the upstream channel closes.
+- **`articleRepo` interface**: Decouples article domain from persistence. Methods: `InsertArticle(ctx, authorID, slug, a)`, `GetArticleBySlug(ctx, slug, viewerID)`, `ListArticles(ctx, filter, viewerID)`, `FeedArticles(ctx, filter, viewerID)`, `UpdateArticle(ctx, callerID, slug, u)`, `FavoriteArticle(ctx, userID, slug)`, `UnfavoriteArticle(ctx, userID, slug)`, `DeleteArticle(ctx, callerID, slug)`, `ViewerFollowsUser(ctx, viewerID, username) bool`.
+- **`articlePublisher` interface**: `PublishArticle(ctx, *Article) error` — called by `ArticleController.CreateArticle` after a successful insert.
+- **`articleSubscriber` interface**: `ArticleSubscribe(ctx) (<-chan Article, error)` — returns a channel of all newly published articles; filtering by followed authors is done in the domain layer.
 - **`ListArticlesFilter`**: Input model for article listing. Fields: `Tag`, `Author`, `Favorited` (`*string`, all optional/case-insensitive), `Limit` (default 20), `Offset` (default 0).
 - **`ArticleFeedFilter`**: Input model for the article feed endpoint. Fields: `Limit` (default 20), `Offset` (default 0).
 - **`ArticleList`**: Return type for article listing. Fields: `Articles []*Article`, `TotalCount int` (total matching count before limit/offset).
 - **`UpdateArticle`**: Extended with `TagList *[]string` — `nil` means preserve existing tags; non-nil (including empty slice) replaces them.
 - **`TagController`**: Handles tag listing. Method: `GetTags(ctx)`.
 - **`tagRepo` interface**: Decouples tag domain from persistence. Method: `GetAllTags(ctx)`.
-- **`CommentController`**: Handles comment creation, retrieval, and deletion. Validates body is non-blank on creation. Methods: `CreateComment(ctx, authorID, articleSlug, c)`, `GetComments(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`.
+- **`CommentController`**: Handles comment creation, retrieval, deletion, and live streaming. Validates body is non-blank on creation. After a successful `CreateComment`, publishes the new comment via the `commentPublisher` port. Methods: `CreateComment(ctx, authorID, articleSlug, c)`, `GetComments(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`, `CommentSubscribe(ctx, slug, viewerID)`.
+- **`CommentSubscribe(ctx, slug, viewerID)`**: Subscribes to the per-slug pub/sub channel via the `commentSubscriber` port, then sets `comment.Author.Following = true` for each comment whose author the viewer follows (checked via `articleRepo.ViewerFollowsUser`). Passes `viewerID=0` for unauthenticated callers, which always yields `following: false`. Returns a read-only channel; closed when `ctx` is cancelled or the upstream channel closes.
 - **`commentRepo` interface**: Decouples comment domain from persistence. Methods: `InsertComment(ctx, authorID, articleSlug, c)`, `GetCommentsByArticleSlug(ctx, articleSlug, viewerID)`, `DeleteComment(ctx, callerID, articleSlug, commentID)`.
+- **`commentPublisher` interface**: `PublishComment(ctx, slug string, *Comment) error` — called by `CommentController.CreateComment` after a successful insert.
+- **`commentSubscriber` interface**: `CommentSubscribe(ctx, slug string) (<-chan Comment, error)` — returns a channel scoped to a single article slug.
 
 ### Inbound Adapter — HTTP (`internal/adapters/in/webserver/`)
 Handles the HTTP protocol layer:
@@ -133,15 +140,19 @@ Runs on a separate port (`GRPC_PORT`) alongside the HTTP server. Both servers ar
 
 **`server.go`** — `NewGrpcServer` registers all five service servers (`UserServiceServer`, `ArticleServiceServer`, `ProfileServiceServer`, `CommentServiceServer`, `TagServiceServer`) and enables gRPC reflection so tools like `grpcurl` can discover the API at runtime.
 
-**`middleware.go`** — `AuthInterceptor` is a unary server interceptor that implements a three-level auth scheme:
+**`middleware.go`** — defines a three-level auth scheme used by both interceptors:
 
 | Constant | Behaviour |
 |---|---|
 | `NoAuth` | Token is not read at all (e.g. `RegisterUser`, `LoginUser`, `GetTags`) |
-| `OptionalAuth` | Token is parsed and the user ID is placed in context if valid; the call proceeds regardless (e.g. `GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`) |
+| `OptionalAuth` | Token is parsed and the user ID is placed in context if valid; the call proceeds regardless (e.g. `GetProfile`, `GetArticleBySlug`, `ListArticles`, `GetComments`, `LiveCommentFeed`) |
 | `MandatoryAuth` | Returns `UNAUTHENTICATED` if the token is absent or invalid |
 
-The per-method requirements are declared as a `map[string]AuthRequirement` in `cmd/server/server.go` and passed to the interceptor at server construction. The interceptor extracts the JWT from the `authorization` metadata key (format: `Token <jwt>`), validates it with the shared JWT secret, parses the `sub` claim as an integer user ID, and stores it in the request context under `UserIDKey`. Handlers read the ID with `ctx.Value(UserIDKey).(int)`; for optional-auth handlers they use the zero value (unauthenticated) if the key is absent.
+Two interceptors implement this scheme:
+- **`AuthInterceptor`** — unary interceptor. The per-method map is passed at construction; the interceptor extracts the JWT from the `authorization` metadata key (`Token <jwt>`), validates it, parses the `sub` claim as an integer user ID, and stores it in the request context under `UserIDKey`.
+- **`StreamAuthInterceptor`** — streaming interceptor with identical logic. Because streaming handlers receive a `grpc.ServerStream` (whose context is immutable), the interceptor wraps the stream in a `wrappedStream` that returns the enriched context from its `Context()` method, then passes the wrapper to the handler. Per-method requirements for streaming RPCs (`LiveArticleFeed` → `MandatoryAuth`, `LiveCommentFeed` → `OptionalAuth`) are declared in a separate map in `cmd/server/server.go`.
+
+Mandatory-auth handlers read the ID with `ctx.Value(UserIDKey).(int)`. Optional-auth handlers use the safe two-value form `userID, _ := ctx.Value(UserIDKey).(int)` so that an absent key yields `0` (unauthenticated) rather than a panic.
 
 **Service servers** — each file defines a narrow service interface (local to the package) and a server struct that implements the generated proto service interface:
 
@@ -161,7 +172,6 @@ The per-method requirements are declared as a `map[string]AuthRequirement` in `c
 - `articleToProto` / `articleListItemToProto` — convert domain `Article` to the single-article and list-item proto shapes respectively.
 - `articleAuthorToProto` — converts a domain `Profile` to `ArticleAuthor`.
 - `articlesResponse` — builds the `ArticlesResponse` (list + total count) from a domain `ArticleList`.
-- `articleErr` — maps `ArticleNotFoundError` / `ForbiddenError` to the correct gRPC status; falls through to `Internal` for unexpected errors.
 
 ### Outbound Adapter — Database (`internal/adapters/out/db/`)
 PostgreSQL persistence via `sqlx`:
@@ -186,6 +196,11 @@ PostgreSQL persistence via `sqlx`:
 - `ListArticles(ctx, filter, viewerID)` and `FeedArticles(ctx, filter, viewerID)` both delegate to a shared private `buildArticleListQuery` helper that constructs the common SELECT/FROM/JOIN/GROUP BY/ORDER BY/LIMIT/OFFSET query. `ListArticles` adds optional WHERE conditions for `tag`, `author`, and `favorited`. `FeedArticles` adds `f.follower_id IS NOT NULL` to restrict results to articles by followed authors. Both use a shared `listRow` struct and `convertListRows` helper. Both omit the `body` column and return `*domain.ArticleList` (never nil, Articles slice never nil).
 - `DeleteArticle(ctx, callerID, slug)` fetches `author_id` by slug (→ `ArticleNotFoundError` if missing), checks `author_id == callerID` (→ `ForbiddenError` if not), then deletes the article. Cascade constraints on `article_tags`, `article_favorites`, and `comments` handle related row cleanup automatically.
 - `GetAllTags(ctx)` returns all tag names ordered alphabetically. Returns `[]string{}` (never nil) when there are no tags.
+- `PublishArticle(ctx, *domain.Article) error` calls `SELECT pg_notify('articles', <json>)` to broadcast a newly created article to all listeners on the `articles` channel.
+- `ArticleSubscribe(ctx) (<-chan domain.Article, error)` opens a `pq.NewListener` on the `articles` channel and returns a channel that emits decoded articles as notifications arrive. The channel is closed when `ctx` is cancelled.
+- `PublishComment(ctx, slug string, *domain.Comment) error` calls `SELECT pg_notify('comments:<slug>', <json>)` to broadcast a newly created comment on a per-article channel.
+- `CommentSubscribe(ctx, slug string) <-chan domain.Comment` opens a `pq.NewListener` on the `comments:<slug>` channel and returns a channel that emits decoded comments. The channel is closed when `ctx` is cancelled.
+- `ViewerFollowsUser(ctx, viewerID int, username string) bool` checks whether `viewerID` follows the user with the given username via a `SELECT EXISTS` on the `follows`/`users` tables. Returns `false` on error.
 
 **Schema (`users` table):**
 | Column | Type | Notes |

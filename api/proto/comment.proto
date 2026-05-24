@@ -9,6 +9,11 @@ service CommentService {
     rpc CreateComment(CreateCommentRequest) returns (CommentResponse);
     rpc GetComments(GetCommentsRequest) returns (CommentsResponse);
     rpc DeleteComment(DeleteCommentRequest) returns (google.protobuf.Empty);
+    rpc LiveCommentFeed(LiveCommentFeedRequest) returns (stream CommentResponseInner);
+}
+
+message LiveCommentFeedRequest {
+    string slug = 1;
 }
 
 message CreateCommentRequestInner {

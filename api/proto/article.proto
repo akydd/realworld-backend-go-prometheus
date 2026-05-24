@@ -14,6 +14,7 @@ service ArticleService {
     rpc DeleteArticle(DeleteArticleRequest) returns (google.protobuf.Empty);
     rpc ListArticles(ListArticlesRequest) returns (ArticlesResponse);
     rpc FeedArticles(FeedArticlesRequest) returns (ArticlesResponse);
+    rpc LiveArticleFeed(google.protobuf.Empty) returns (stream ArticleListItem);
 }
 
 message CreateArticleRequestInner {
