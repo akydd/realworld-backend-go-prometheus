@@ -12,6 +12,8 @@ services:
       - app-data:/var/lib/postgresql/data
       # Mount a local directory for custom init script
       - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "8095:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d app"]
       interval: 5s
