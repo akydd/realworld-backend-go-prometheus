@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -89,21 +90,44 @@ func authMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 	}
 }
 
-// Prometheus middleware for timing all http requests, labeled by request method and url path.
+// routePattern returns the matched Gorilla Mux route template (e.g.
+// /api/articles/{slug}) rather than the actual request path. Using the
+// template as a Prometheus label keeps cardinality bounded — one time series
+// per route, not one per unique URL.
+func routePattern(r *http.Request) string {
+	route := mux.CurrentRoute(r)
+	if route == nil {
+		return r.URL.Path
+	}
+	tmpl, err := route.GetPathTemplate()
+	if err != nil {
+		return r.URL.Path
+	}
+	return tmpl
+}
 
 var httpDurationCollector = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-	Name: "http_request_duration",
-	Help: "http reuest duration in ms",
-}, []string{"endpoint"})
+	Name: "http_request_duration_ms",
+	Help: "HTTP request duration in milliseconds, labeled by route template and method",
+}, []string{"path", "method"})
 
 func requestTimer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
-
 		next.ServeHTTP(w, r)
-
 		dur := time.Since(now).Milliseconds()
+		httpDurationCollector.WithLabelValues(routePattern(r), r.Method).Observe(float64(dur))
+	})
+}
 
-		httpDurationCollector.WithLabelValues(r.URL.Path).Observe(float64(dur))
+var httpRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "http_request_count",
+	Help: "HTTP request count, labeled by route template, method, and status code",
+}, []string{"path", "method", "status"})
+
+func requestCounter(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		httpRequestCounter.WithLabelValues(routePattern(r), r.Method, w.Header().Get("status")).Inc()
 	})
 }

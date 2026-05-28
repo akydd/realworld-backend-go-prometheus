@@ -53,10 +53,11 @@ func NewServer(port string, h ServerHandlers, jwtSecret string) (*Server, error)
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		httpDurationCollector,
+		httpRequestCounter,
 	)
 	r := mux.NewRouter()
 
-	r.Use(requestTimer)
+	r.Use(requestTimer, requestCounter)
 
 	r.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
