@@ -8,6 +8,9 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Server wraps the HTTP router and manages the lifecycle of the web server.
@@ -44,7 +47,19 @@ type ServerHandlers interface {
 // NewServer constructs a Server, wires all API routes to the supplied handlers,
 // and applies authentication middleware to protected and optional-auth routes.
 func NewServer(port string, h ServerHandlers, jwtSecret string) (*Server, error) {
+	// prometheus default metrics
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		httpDurationCollector,
+	)
 	r := mux.NewRouter()
+
+	r.Use(requestTimer)
+
+	r.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
 	r.HandleFunc("/api/users", h.RegisterUser).Methods("POST")
 	r.HandleFunc("/api/users/login", h.LoginUser).Methods("POST")
 	r.HandleFunc("/api/tags", h.GetTags).Methods("GET")

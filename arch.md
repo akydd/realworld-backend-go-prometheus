@@ -112,6 +112,7 @@ Handles the HTTP protocol layer:
 **Current routes:**
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/metrics` | Prometheus metrics (Go runtime + HTTP) |
 | POST | `/api/users` | Register a new user |
 | POST | `/api/users/login` | Log in an existing user |
 | GET | `/api/user` | Get the authenticated user |
@@ -270,6 +271,7 @@ PostgreSQL persistence via `sqlx`:
 | `alexedwards/argon2id` | Password hashing |
 | `golang-jwt/jwt/v5` | JWT token generation (HS256) |
 | `joho/godotenv` | `.env` file loading |
+| `prometheus/client_golang` | Prometheus metrics exposition (`/metrics`) |
 
 ## Configuration
 
@@ -288,9 +290,12 @@ Loaded from `.env` / `.env_test` via `godotenv`:
 
 ## Infrastructure (Docker)
 
-Docker Compose is split into two files:
-- **`compose.yaml`**: Production database (`db`, port 8095, volume `app-data`)
+Docker Compose is split into three files:
+- **`compose.yaml`**: Full production stack — `db` (Postgres with healthcheck), `app` (built from `Dockerfile`, exposes 8090/8099, waits for `db` to be healthy), `prometheus` (scrapes `app:8090/metrics` every 15s, exposes 9090)
+- **`compose.dev.yaml`**: Dev overlay — overrides `app` to build the `dev` Dockerfile stage (Go toolchain + `air`), bind-mounts the project root into `/app`, and caches the Go module cache in a named volume. Run with `docker compose -f compose.yaml -f compose.dev.yaml up` (`make dev`).
 - **`compose.test.yaml`**: Test database (`test_db`, port 8096, volume `app-test-data`)
+
+The `Dockerfile` has three stages: `builder` (compiles the static binary), `dev` (Go toolchain + `air` for hot reload), and the final `scratch`-based production image.
 
 Migrations run automatically at app startup via embedded Goose files.
 

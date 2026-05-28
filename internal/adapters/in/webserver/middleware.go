@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type contextKey string
@@ -85,4 +87,23 @@ func authMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// Prometheus middleware for timing all http requests, labeled by request method and url path.
+
+var httpDurationCollector = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "http_request_duration",
+	Help: "http reuest duration in ms",
+}, []string{"endpoint"})
+
+func requestTimer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
+
+		next.ServeHTTP(w, r)
+
+		dur := time.Since(now).Milliseconds()
+
+		httpDurationCollector.WithLabelValues(r.URL.Path).Observe(float64(dur))
+	})
 }

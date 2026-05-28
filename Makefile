@@ -2,14 +2,9 @@
 
 start:
 	docker compose up -d
-	until docker compose exec -T db pg_isready -U admin -d app; do sleep 1; done
-	go build ./cmd/server
-	./server
 
 dev:
-	docker compose up -d
-	until docker compose exec -T db pg_isready -U admin -d app; do sleep 1; done
-	air
+	docker compose -f compose.yaml -f compose.dev.yaml up
 
 proto:
 	buf generate

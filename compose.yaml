@@ -10,8 +10,50 @@ services:
       PGDATA: /var/lib/postgresql/data
     volumes:
       - app-data:/var/lib/postgresql/data
+      # Mount a local directory for custom init script
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      # Format: postgresql://username:password@hostname:port/database?sslmode=disable
+      DATA_SOURCE_NAME: "postgresql://postgres_exporter:password@db:5432/app?sslmode=disable"
     ports:
-      - 8095:5432
+      - "9187:9187"
+    depends_on:
+      - db
+
+  app:
+    build: .
+    ports:
+      - "8090:8090"
+      - "8099:8099"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_NAME: app
+      SERVER_PORT: 8090
+      GRPC_PORT: 8099
+      JWT_SECRET: secret
+    depends_on:
+      db:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - app
 
 volumes:
   app-data:

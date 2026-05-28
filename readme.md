@@ -4,7 +4,7 @@
 
 A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com). Users can register, publish articles, follow each other, comment, and favorite posts.
 
-**Stack:** Go · gRPC · PostgreSQL · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
+**Stack:** Go · gRPC · PostgreSQL · Prometheus · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
 
 ## Key Design Decisions
 
@@ -123,23 +123,29 @@ The mapping lives in `internal/adapters/in/grpc/errors.go`. All four handler fil
 
 ## Running the app
 
-**Prerequisites:** Docker, Go 1.21+
+**Prerequisites:** Docker
 
 ```bash
 make start
 ```
 
-This will:
-1. Start the production PostgreSQL database via Docker Compose
-2. Wait until the database is ready
-3. Build the server binary
-4. Start the server on port **8090**
-
-Stop the server with Ctrl+C. To also stop the database:
+Starts the full stack in the background: PostgreSQL, the Go server (port **8090** HTTP, **8099** gRPC), and Prometheus (port **9090**). The app waits for the database healthcheck to pass before starting. Metrics are available at `http://localhost:8090/metrics` and the Prometheus UI at `http://localhost:9090`.
 
 ```bash
 docker compose down
 ```
+
+Stops and removes all containers.
+
+## Running with hot reload
+
+**Prerequisites:** Docker
+
+```bash
+make dev
+```
+
+Same stack as `make start`, but the `app` container runs `air` against a bind-mount of the project root. Saving any `.go` file triggers an automatic recompile and restart inside the container. The Go module cache is persisted in a named volume so dependencies are not re-downloaded on each restart.
 
 ## Running the integration tests
 

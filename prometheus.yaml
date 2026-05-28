@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'realworld-app'
+    static_configs:
+      - targets: ['app:8090']
+
+  - job_name: 'realworld-db'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
