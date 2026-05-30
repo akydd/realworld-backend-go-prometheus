@@ -1,3 +1,7 @@
+networks:
+  monitoring:
+    driver: bridge
+
 services:
   db:
     image: postgres
@@ -19,6 +23,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - monitoring
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
@@ -29,12 +35,14 @@ services:
       - "9187:9187"
     depends_on:
       - db
+    networks:
+      - monitoring
 
   app:
     build: .
     ports:
-      - "8090:8090"
-      - "8099:8099"
+      - "8090:8090" # rest api
+      - "8099:8099" # grpc api
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -47,6 +55,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - monitoring
 
   prometheus:
     image: prom/prometheus
@@ -56,6 +66,21 @@ services:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       - app
+    networks:
+      - monitoring
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitoring
+      
 volumes:
   app-data:
+  grafana-storage:
