@@ -2,7 +2,7 @@
 
 ## Overview
 
-A [RealWorld](https://github.com/gothinkster/realworld) backend implementation in Go using **Hexagonal Architecture** (Ports & Adapters). Business logic is isolated in a domain layer, with adapters for HTTP input and PostgreSQL output.
+A [RealWorld](https://github.com/gothinkster/realworld) backend implementation in Go using **Hexagonal Architecture** (Ports & Adapters). Business logic is isolated in a domain layer, with adapters for HTTP input and PostgreSQL output. The project demonstrates Prometheus + Grafana observability for a Go API and PostgreSQL, running entirely in Docker Compose.
 
 ## Project Structure
 
@@ -63,8 +63,12 @@ realworld-backend-go/
 │   ├── pagination_test.go
 │   ├── errors_test.go
 │   └── streaming_test.go             # LiveArticleFeed, LiveCommentFeed, slug isolation
-├── compose.yaml                      # Docker Compose (prod DB)
-├── compose.test.yaml                 # Docker Compose (test DB)
+├── compose.yaml                      # Docker Compose (full observability stack)
+├── compose.dev.yaml                  # Docker Compose overlay (hot reload via air)
+├── compose.test.yaml                 # Docker Compose (test DB only)
+├── prometheus.yaml                   # Prometheus scrape config
+├── provisioning/datasources/         # Grafana datasource provisioning
+├── init-db/prometheus.sql            # Creates postgres_exporter DB user
 ├── Makefile                          # make int-tests / make int-tests-grpc
 ├── .env                              # Production environment config
 └── .env_test                         # Test environment config
@@ -288,16 +292,52 @@ Loaded from `.env` / `.env_test` via `godotenv`:
 | `DB_PASSWORD` | password | |
 | `DB_NAME` | app | Database name (test: test-app) |
 
-## Infrastructure (Docker)
+## Infrastructure (Docker Compose)
 
 Docker Compose is split into three files:
-- **`compose.yaml`**: Full production stack — `db` (Postgres with healthcheck), `app` (built from `Dockerfile`, exposes 8090/8099, waits for `db` to be healthy), `prometheus` (scrapes `app:8090/metrics` every 15s, exposes 9090)
-- **`compose.dev.yaml`**: Dev overlay — overrides `app` to build the `dev` Dockerfile stage (Go toolchain + `air`), bind-mounts the project root into `/app`, and caches the Go module cache in a named volume. Run with `docker compose -f compose.yaml -f compose.dev.yaml up` (`make dev`).
-- **`compose.test.yaml`**: Test database (`test_db`, port 8096, volume `app-test-data`)
+
+- **`compose.yaml`**: Full stack — all services share a `monitoring` bridge network so they can reach each other by service name.
+  - `db` — PostgreSQL with healthcheck; app waits for it to be healthy before starting.
+  - `postgres-exporter` — `prometheuscommunity/postgres-exporter`; scrapes `db` and exposes metrics on port 9187. Requires a `postgres_exporter` database user created by `init-db/prometheus.sql` (runs automatically on first container start).
+  - `app` — built from `Dockerfile`, exposes HTTP on 8090 and gRPC on 8099.
+  - `prometheus` — scrapes `app:8090/metrics` (Go + HTTP metrics) and `postgres-exporter:9187` (PostgreSQL metrics) every 15 s. Config is bind-mounted from `prometheus.yaml`.
+  - `grafana` — Grafana with a provisioned Prometheus datasource (`provisioning/datasources/datasource.yaml`). Dashboards and settings are persisted in a named volume (`grafana-storage`).
+
+- **`compose.dev.yaml`**: Dev overlay — overrides `app` to build the `dev` Dockerfile stage (Go toolchain + `air`), bind-mounts the project root into `/app`, and caches the Go module cache in a named volume. `air` uses polling mode (`poll = true` in `.air.toml`) so file-change events propagate correctly on macOS. Run with `docker compose -f compose.yaml -f compose.dev.yaml up` (`make dev`).
+
+- **`compose.test.yaml`**: Test database only (`test_db`, port 8096, volume `app-test-data`).
 
 The `Dockerfile` has three stages: `builder` (compiles the static binary), `dev` (Go toolchain + `air` for hot reload), and the final `scratch`-based production image.
 
 Migrations run automatically at app startup via embedded Goose files.
+
+## Observability
+
+### Prometheus metrics
+
+A single `requestTimer` middleware wraps the entire Gorilla Mux router and records every HTTP request into a `HistogramVec`:
+
+```
+http_request_duration_ms{path, method, status}
+```
+
+The `path` label is the **route template** (e.g. `/api/articles/{slug}`), not the raw URL. This keeps Prometheus cardinality bounded — one time series per route, not one per unique article slug. The template is extracted via `mux.CurrentRoute(r).GetPathTemplate()`.
+
+A custom Prometheus registry is used so `/metrics` only exposes explicitly registered metrics (Go runtime, process, and the HTTP histogram).
+
+### RED method queries
+
+All three RED signals derive from the single histogram metric:
+
+| Signal | PromQL |
+|--------|--------|
+| Rate (req/s) | `sum(rate(http_request_duration_ms_count[5m]))` |
+| Errors (4xx/5xx) | `sum by (status) (rate(http_request_duration_ms_count{status=~"4..\|5.."}[5m]))` |
+| Duration (p99 ms) | `histogram_quantile(0.99, sum by (le) (rate(http_request_duration_ms_bucket[5m])))` |
+
+### PostgreSQL dashboard
+
+Import a community dashboard from grafana.com/grafana/dashboards (filter by Prometheus datasource) to get PostgreSQL metrics from `postgres_exporter` with no additional configuration.
 
 ## Testing
 

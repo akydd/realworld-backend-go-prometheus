@@ -4,7 +4,7 @@
 
 A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com). Users can register, publish articles, follow each other, comment, and favorite posts.
 
-**Stack:** Go · gRPC · PostgreSQL · Prometheus · Docker · AWS ECS Fargate · RDS · ALB · Terraform · GitHub Actions
+**Stack:** Go · gRPC · PostgreSQL · Prometheus · Grafana · Docker
 
 ## Key Design Decisions
 
@@ -12,15 +12,7 @@ A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend A
 
 **Native gRPC alongside HTTP** — the server exposes both a Gorilla Mux HTTP API (spec-compliant with the RealWorld spec) and a native gRPC API, both backed by the same domain layer. See the [gRPC API](#grpc-api) section for the reasoning behind running them as separate servers rather than using grpc-gateway.
 
-**AWS ECS Fargate over EC2** — no servers to manage or patch. Tasks run across two private subnets (one per AZ) behind an ALB for high availability and zero-downtime rolling deploys. Application Auto Scaling adjusts the task count between 2 and 4 based on CPU utilization, keeping costs low under normal load while handling traffic spikes automatically.
-
-**Keyless CI/CD via OIDC** — GitHub Actions assumes an AWS IAM role via OpenID Connect rather than using static credentials. No long-lived AWS access keys exist anywhere in the pipeline.
-
-**Separate task execution role and task role** — the execution role has the minimum permissions needed to start a container (pull from ECR, write logs, read secrets). The task role holds only the permissions the running application needs. Compromise of one does not imply compromise of the other.
-
-**Secrets Manager over environment variables** — `DB_PASSWORD` and `JWT_SECRET` are stored in AWS Secrets Manager and injected at container startup. They are never committed to source control or stored in CI.
-
-**Observability via CloudWatch** — ECS CPU/memory, RDS CPU/connections, and ALB 5xx error rate are monitored with CloudWatch alarms. Breaches trigger SNS email notifications, enabling rapid response to availability and performance issues.
+**Observability via Prometheus + Grafana** — all HTTP requests are instrumented with a single middleware that records request duration and status code using a Gorilla Mux route template as the label (rather than the raw URL path) to keep Prometheus cardinality bounded. PostgreSQL metrics are collected via `postgres_exporter`. Grafana is provisioned automatically with a Prometheus datasource and is available at `http://localhost:3000`.
 
 ## Architecture
 
@@ -33,36 +25,12 @@ The project uses **Hexagonal Architecture** (Ports & Adapters):
 
 See [arch.md](arch.md) for a full description of every layer, route, schema, and design decision.
 
-## CI/CD
+## CI
 
 Every push to `main` runs the GitHub Actions pipeline. It can also be triggered manually via the **Run workflow** button in the Actions tab.
 
-### Pipeline stages
-
 1. **HTTP integration tests** — checks out the [gothinkster/realworld](https://github.com/gothinkster/realworld) spec repo, installs Hurl, and runs the full HTTP API test suite (`make int-tests`).
 2. **gRPC integration tests** — runs the Go e2e test suite in `test/grpc/` against a live server and test database (`make int-tests-grpc`).
-3. **Build and push** — builds the Docker image and pushes it to Amazon ECR, tagged with the branch name, semver (on tagged releases), and `latest` (on `main`).
-4. **Deploy** — triggers a rolling deployment on ECS Fargate by forcing a new deployment of the `realworld-service`. Only runs on pushes to `main`, not on tag pushes. ECS pulls the new `latest` image, starts new tasks, waits for them to pass the ALB health check at `GET /api/healthcheck`, then drains the old tasks.
-
-### Infrastructure
-
-The app runs on AWS in `ca-west-1` using the following services:
-
-- **ECS Fargate** — runs the containerised Go app across two private subnets (one per AZ) for high availability; Application Auto Scaling scales tasks between 2 and 4 based on CPU utilization
-- **Application Load Balancer** — receives inbound HTTP traffic on port 80 and forwards to Fargate tasks on port 8090
-- **RDS PostgreSQL 17** — database in private subnets, only reachable from ECS tasks
-- **ECR** — stores Docker images pushed by the CI pipeline
-- **Secrets Manager** — holds `DB_PASSWORD` and `JWT_SECRET`, injected into containers at startup
-- **CloudWatch Logs** — container stdout/stderr streamed to `/ecs/realworld` (30 day retention)
-- **CloudWatch Alarms + SNS** — email alerts for ECS CPU/memory, RDS CPU/connections, and ALB 5xx error rate
-
-All infrastructure is defined in Terraform under `terraform/`.
-
-### Required secrets
-
-| Secret | Description |
-|---|---|
-| `AWS_ROLE_ARN` | ARN of the IAM role assumed via OIDC for ECR push and ECS deploy access |
 
 ## How it was developed
 
@@ -74,7 +42,7 @@ Features were written as plain-English specification files (e.g. `features/9-cre
 4. Verify `make lint` reported no issues and `make int-tests` passed all integration tests.
 5. Review updates to `arch.md` to keep the architecture document current.
 
-The infrastructure was designed and debugged collaboratively with Claude Code — including VPC layout, IAM policy scoping, ECS service configuration, and resolving deployment issues.
+The observability stack (Prometheus instrumentation, Grafana provisioning, postgres_exporter) was also designed collaboratively with Claude Code.
 
 ## gRPC API
 
@@ -129,7 +97,14 @@ The mapping lives in `internal/adapters/in/grpc/errors.go`. All four handler fil
 make start
 ```
 
-Starts the full stack in the background: PostgreSQL, the Go server (port **8090** HTTP, **8099** gRPC), and Prometheus (port **9090**). The app waits for the database healthcheck to pass before starting. Metrics are available at `http://localhost:8090/metrics` and the Prometheus UI at `http://localhost:9090`.
+Starts the full stack in the background: PostgreSQL, the Go server (port **8090** HTTP, **8099** gRPC), Prometheus (port **9090**), and Grafana (port **3000**). The app waits for the database healthcheck to pass before starting.
+
+| Endpoint | URL |
+|---|---|
+| REST API | http://localhost:8090/api |
+| Prometheus metrics | http://localhost:8090/metrics |
+| Prometheus UI | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
 
 ```bash
 docker compose down
