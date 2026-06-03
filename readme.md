@@ -66,9 +66,15 @@ One metric gives all three RED signals:
 | **Errors** — 4xx/5xx rate by code | `sum by (status) (rate(http_request_duration_ms_count{status=~"4..\|5.."}[5m]))` |
 | **Duration** — p99 latency (ms) | `histogram_quantile(0.99, sum by (le) (rate(http_request_duration_ms_bucket[5m])))` |
 
+### Pre-packaged dashboards
+
+The RED dashboard is provisioned from `provisioning/dashboards/red-dashboard.json` and loads automatically on container start — no clicking through the UI required. Four stat panels show the current request rate, error rate %, p99 latency, and p50 latency. Three time-series panels show rate by route, errors broken down by status code, and latency percentiles (p50/p95/p99).
+
+Adding more dashboards is a matter of dropping a JSON file into the same directory; Grafana reloads the folder every 30 seconds.
+
 ### PostgreSQL monitoring
 
-`postgres_exporter` is wired into the same Compose network and scraped by Prometheus. A community dashboard from grafana.com/grafana/dashboards gives instant visibility into connections, transaction rates, cache hit ratios, and lock waits with no additional configuration.
+`postgres_exporter` is wired into the same Compose network and scraped by Prometheus. A community dashboard from grafana.com/grafana/dashboards gives instant visibility into connections, transaction rates, cache hit ratios, and lock waits. Export its JSON and drop it in `provisioning/dashboards/` to include it in the provisioned set.
 
 ### Load testing
 
