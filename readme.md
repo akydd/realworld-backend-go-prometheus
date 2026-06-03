@@ -2,17 +2,79 @@
 
 ![CI](https://github.com/akydd/realworld-backend-go/actions/workflows/docker-publish.yml/badge.svg)
 
-A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com). Users can register, publish articles, follow each other, comment, and favorite posts.
+A [RealWorld](https://github.com/gothinkster/realworld) spec-compliant backend API for a social blogging platform (think Medium.com), built primarily as a demonstration of **production-style observability** with Prometheus and Grafana.
 
 **Stack:** Go · gRPC · PostgreSQL · Prometheus · Grafana · Docker
 
-## Key Design Decisions
+---
 
-**Hexagonal Architecture (Ports & Adapters)** — business logic in `internal/domain/` has zero framework dependencies. The HTTP layer and PostgreSQL adapter are fully interchangeable without touching domain code. This makes the codebase easy to test, extend, and reason about.
+## Observability
 
-**Native gRPC alongside HTTP** — the server exposes both a Gorilla Mux HTTP API (spec-compliant with the RealWorld spec) and a native gRPC API, both backed by the same domain layer. See the [gRPC API](#grpc-api) section for the reasoning behind running them as separate servers rather than using grpc-gateway.
+The project implements the **RED method** (Rate, Errors, Duration) for the Go API and full PostgreSQL monitoring, all running in Docker Compose with zero external dependencies.
 
-**Observability via Prometheus + Grafana** — all HTTP requests are instrumented with a single middleware that records request duration and status code using a Gorilla Mux route template as the label (rather than the raw URL path) to keep Prometheus cardinality bounded. PostgreSQL metrics are collected via `postgres_exporter`. Grafana is provisioned automatically with a Prometheus datasource and is available at `http://localhost:3000`.
+```
+┌──────────┐   scrapes /metrics   ┌────────────┐   queries   ┌─────────┐
+│  Go app  │ ──────────────────▶  │ Prometheus │ ──────────▶ │ Grafana │
+│  :8090   │                      │   :9090    │             │  :3000  │
+└──────────┘                      └────────────┘             └─────────┘
+                                        ▲
+┌──────────────────┐   scrapes :9187    │
+│ postgres_exporter│ ───────────────────┘
+└──────────────────┘
+        ▲
+┌──────────────┐
+│  PostgreSQL  │
+│    :8095     │
+└──────────────┘
+```
+
+### Application instrumentation
+
+A single middleware wraps the entire router and records every HTTP request into one `HistogramVec`:
+
+```go
+var httpDurationCollector = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+    Name: "http_request_duration_ms",
+}, []string{"path", "method", "status"})
+```
+
+The `path` label is the **route template** (`/api/articles/{slug}`), not the raw URL. Without this, every unique article slug would create its own time series — a cardinality explosion that would make Prometheus unusable at scale. The template is extracted via Gorilla Mux:
+
+```go
+func routePattern(r *http.Request) string {
+    route := mux.CurrentRoute(r)
+    if route == nil {
+        return r.URL.Path
+    }
+    tmpl, err := route.GetPathTemplate()
+    if err != nil {
+        return r.URL.Path
+    }
+    return tmpl
+}
+```
+
+A custom registry ensures `/metrics` only exposes what is explicitly registered — no surprise metrics from third-party libraries.
+
+### RED dashboard queries
+
+One metric gives all three RED signals:
+
+| Signal | PromQL |
+|--------|--------|
+| **Rate** — requests per second | `sum(rate(http_request_duration_ms_count[5m]))` |
+| **Errors** — 4xx/5xx rate by code | `sum by (status) (rate(http_request_duration_ms_count{status=~"4..\|5.."}[5m]))` |
+| **Duration** — p99 latency (ms) | `histogram_quantile(0.99, sum by (le) (rate(http_request_duration_ms_bucket[5m])))` |
+
+### PostgreSQL monitoring
+
+`postgres_exporter` is wired into the same Compose network and scraped by Prometheus. A community dashboard from grafana.com/grafana/dashboards gives instant visibility into connections, transaction rates, cache hit ratios, and lock waits with no additional configuration.
+
+### Load testing
+
+A companion project ([realworld-load-test](https://github.com/akydd/realworld-load-test)) uses **k6** to drive realistic traffic against the API — anonymous readers, authenticated users, content creators, a "hot article" with thousands of comments, and intentional 4xx error traffic at production-comparable rates (~4% of total requests). It seeds the database with 1,000 users, 10,000 articles, and realistic follow/favorite graphs before running.
+
+---
 
 ## Architecture
 
