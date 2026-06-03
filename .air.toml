@@ -7,3 +7,5 @@
   exclude_dir = ["tmp", "vendor", "api"]
   kill_delay = "0s"
   delay = 500
+  poll = true
+  poll_interval = 500

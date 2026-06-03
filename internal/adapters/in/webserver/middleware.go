@@ -2,6 +2,8 @@ package webserver
 
 import (
 	"context"
+	"fmt"
+
 	"net/http"
 	"strconv"
 	"strings"
@@ -125,9 +127,26 @@ var httpRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help: "HTTP request count, labeled by route template, method, and status code",
 }, []string{"path", "method", "status"})
 
+// statusResponseWriter capture the response's http status code for later use.
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func newLoggingResponseWriter(w http.ResponseWriter) *statusResponseWriter {
+	return &statusResponseWriter{w, http.StatusOK}
+}
+
+func (l *statusResponseWriter) WriteHeader(code int) {
+	l.statusCode = code
+	l.ResponseWriter.WriteHeader(code)
+}
+
 func requestCounter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-		httpRequestCounter.WithLabelValues(routePattern(r), r.Method, w.Header().Get("status")).Inc()
+		l := newLoggingResponseWriter(w)
+		next.ServeHTTP(l, r)
+		status := fmt.Sprintf("%d", l.statusCode)
+		httpRequestCounter.WithLabelValues(routePattern(r), r.Method, status).Inc()
 	})
 }
