@@ -110,22 +110,22 @@ func routePattern(r *http.Request) string {
 
 var httpDurationCollector = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "http_request_duration_ms",
-	Help: "HTTP request duration in milliseconds, labeled by route template and method",
-}, []string{"path", "method"})
+	Help: "HTTP request duration in milliseconds, labeled by route template, method, and status code",
+}, []string{"path", "method", "status"})
 
 func requestTimer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
-		next.ServeHTTP(w, r)
+
+		l := newLoggingResponseWriter(w)
+		next.ServeHTTP(l, r)
+
 		dur := time.Since(now).Milliseconds()
-		httpDurationCollector.WithLabelValues(routePattern(r), r.Method).Observe(float64(dur))
+		status := fmt.Sprintf("%d", l.statusCode)
+
+		httpDurationCollector.WithLabelValues(routePattern(r), r.Method, status).Observe(float64(dur))
 	})
 }
-
-var httpRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "http_request_count",
-	Help: "HTTP request count, labeled by route template, method, and status code",
-}, []string{"path", "method", "status"})
 
 // statusResponseWriter capture the response's http status code for later use.
 type statusResponseWriter struct {
@@ -140,13 +140,4 @@ func newLoggingResponseWriter(w http.ResponseWriter) *statusResponseWriter {
 func (l *statusResponseWriter) WriteHeader(code int) {
 	l.statusCode = code
 	l.ResponseWriter.WriteHeader(code)
-}
-
-func requestCounter(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		l := newLoggingResponseWriter(w)
-		next.ServeHTTP(l, r)
-		status := fmt.Sprintf("%d", l.statusCode)
-		httpRequestCounter.WithLabelValues(routePattern(r), r.Method, status).Inc()
-	})
 }
