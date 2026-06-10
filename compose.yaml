@@ -79,6 +79,8 @@ services:
       - ./provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
     networks:
       - monitoring
       
