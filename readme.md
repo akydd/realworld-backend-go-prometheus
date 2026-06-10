@@ -68,13 +68,19 @@ One metric gives all three RED signals:
 
 ### Pre-packaged dashboards
 
-The RED dashboard is provisioned from `provisioning/dashboards/red-dashboard.json` and loads automatically on container start — no clicking through the UI required. Four stat panels show the current request rate, error rate %, p99 latency, and p50 latency. Three time-series panels show rate by route, errors broken down by status code, and latency percentiles (p50/p95/p99).
+Three dashboards are provisioned from `provisioning/dashboards/` and load automatically on container start — no clicking through the UI required.
+
+| Dashboard | File | What it shows |
+|-----------|------|---------------|
+| **RED** | `red-dashboard.json` | Four stat panels (request rate, error rate %, p99/p50 latency) and three time-series panels (rate by route, errors by status code, latency percentiles p50/p95/p99) |
+| **Go Processes** | `go-dashboard.json` | Process memory, Go memstats, open file descriptors, goroutine count, and GC duration quantiles |
+| **PostgreSQL Database** | `postgres-dashboard.json` | General counters, CPU/memory usage, connections, PostgreSQL settings, and file descriptor stats |
 
 Adding more dashboards is a matter of dropping a JSON file into the same directory; Grafana reloads the folder every 30 seconds.
 
 ### PostgreSQL monitoring
 
-`postgres_exporter` is wired into the same Compose network and scraped by Prometheus. A community dashboard from grafana.com/grafana/dashboards gives instant visibility into connections, transaction rates, cache hit ratios, and lock waits. Export its JSON and drop it in `provisioning/dashboards/` to include it in the provisioned set.
+`postgres_exporter` is wired into the same Compose network and scraped by Prometheus. The PostgreSQL Database dashboard (`provisioning/dashboards/postgres-dashboard.json`) provisions automatically and gives instant visibility into connections, transaction rates, CPU/memory, and PostgreSQL configuration settings.
 
 ### Load testing
 

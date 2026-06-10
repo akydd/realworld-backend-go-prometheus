@@ -341,13 +341,11 @@ All three RED signals derive from the single histogram metric:
 Dashboards are provisioned from `provisioning/dashboards/` so they load automatically on container start with no UI interaction required. Two files drive this:
 
 - `provider.yaml` — tells Grafana to load all JSON files from the mounted directory, and to poll for changes every 30 seconds.
-- `red-dashboard.json` — the RED dashboard described above: four stat panels (request rate, error rate %, p99 latency, p50 latency) and three time-series panels (rate by route, errors by status code, latency percentiles p50/p95/p99). The dashboard references the Prometheus datasource by its provisioned UID (`prometheus`), set explicitly in `provisioning/datasources/datasource.yaml`.
+- `red-dashboard.json` — four stat panels (request rate, error rate %, p99 latency, p50 latency) and three time-series panels (rate by route, errors by status code, latency percentiles p50/p95/p99). References the Prometheus datasource by its provisioned UID (`prometheus`), set explicitly in `provisioning/datasources/datasource.yaml`.
+- `go-dashboard.json` — process memory, Go memstats, open file descriptors, goroutine count, and GC duration quantiles for the Go server process.
+- `postgres-dashboard.json` — general counters, CPU/memory usage, connections, PostgreSQL settings, and file descriptor stats sourced from `postgres_exporter`.
 
-To update the dashboard: edit the JSON file and Grafana reloads it within 30 seconds. To add a new dashboard: export it from Grafana (Dashboard Settings → JSON Model), save the file to `provisioning/dashboards/`, and it appears on the next reload cycle. Note that provisioned dashboards show a lock icon in the UI — edits must be made to the JSON file, not in the browser.
-
-### PostgreSQL dashboard
-
-Import a community dashboard from grafana.com/grafana/dashboards (filter by Prometheus datasource) to get PostgreSQL metrics from `postgres_exporter`. Export the JSON and drop it in `provisioning/dashboards/` to include it in the provisioned set.
+To update a dashboard: edit the JSON file and Grafana reloads it within 30 seconds. To add a new dashboard: export it from Grafana (Dashboard Settings → JSON Model), save the file to `provisioning/dashboards/`, and it appears on the next reload cycle. Note that provisioned dashboards show a lock icon in the UI — edits must be made to the JSON file, not in the browser.
 
 ## Testing
 
