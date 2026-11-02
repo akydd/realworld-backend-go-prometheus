@@ -1,7 +1,7 @@
 .PHONY: int-tests int-tests-grpc lint start proto dev
 
 start:
-	docker compose up -d
+	docker compose up -d --build
 
 dev:
 	docker compose -f compose.yaml -f compose.dev.yaml up
