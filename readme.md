@@ -176,15 +176,24 @@ Starts the full stack in the background: PostgreSQL, the Go server (port **8090*
 | Endpoint | URL |
 |---|---|
 | REST API | http://localhost:8090/api |
+| REST health check | http://localhost:8090/api/healthcheck |
+| gRPC health check | `grpc_health_probe -addr localhost:8099` (standard `grpc.health.v1` service) |
 | Prometheus metrics | http://localhost:8090/metrics |
 | Prometheus UI | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
+
+The REST health check returns `200 OK` to signal process liveness; it does not verify database connectivity.
 
 ```bash
 docker compose down
 ```
 
 Stops and removes all containers.
+
+### Troubleshooting
+
+- **`port is already allocated` on startup** (e.g. `Bind for 0.0.0.0:8095 failed`) — another process or container is already using that host port. PostgreSQL publishes **8095**, the app **8090**/**8099**, Prometheus **9090**, Grafana **3000**, and `postgres_exporter` **9187**. Find the offender with `lsof -nP -iTCP:8095 -sTCP:LISTEN` or `docker ps --format '{{.Names}} {{.Ports}}' | grep 8095`, then stop it or change the mapping in `compose.yaml`.
+- **App exits with `dial tcp: lookup db ... no such host`** — the `app` container can't resolve the `db` service, usually because stale containers from an earlier run are on a different Docker network. Recreate the whole stack cleanly: `docker compose down && make start`. Named volumes (`app-data`, `grafana-storage`) are preserved.
 
 ## Running with hot reload
 
